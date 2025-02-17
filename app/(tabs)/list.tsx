@@ -85,7 +85,7 @@ const askAIForCategory = async (item: string): Promise<Category> => {
       fallbackCategory = 'Produce';
     } else if (lowercaseItem.includes('frozen')) {
       fallbackCategory = 'Frozen';
-    } else if (lowercaseItem.includes('milk') || lowercaseItem.includes('cheese')) {
+    } else if (lowercaseItem.includes('milk') || lowercaseItem.includes('cheese'))  {
       fallbackCategory = 'Dairy';
     } else if (lowercaseItem.includes('meat') || lowercaseItem.includes('chicken') || lowercaseItem.includes('fish')) {
       fallbackCategory = 'Meat';
