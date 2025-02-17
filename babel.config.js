@@ -5,6 +5,17 @@ module.exports = function (api) {
     plugins: [
       // Required for expo-router
       'expo-router/babel',
+      [
+        'module:react-native-dotenv',
+        {
+          moduleName: '@env',
+          path: '.env',
+          blacklist: null,
+          whitelist: ['GEMINI_API_KEY'],
+          safe: true,
+          allowUndefined: false,
+        },
+      ],
     ],
   };
 };
