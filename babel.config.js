@@ -11,7 +11,12 @@ module.exports = function (api) {
           moduleName: '@env',
           path: '.env',
           blacklist: null,
-          whitelist: ['GEMINI_API_KEY'],
+          allowlist: [
+            'GEMINI_API_KEY',
+            'USDA_API_KEY',
+            'MAPPEDIN_CLIENT_ID',
+            'MAPPEDIN_CLIENT_SECRET'
+          ],
           safe: true,
           allowUndefined: false,
         },
