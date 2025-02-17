@@ -3,6 +3,8 @@ import { View, Text, Pressable, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Haptics from 'expo-haptics';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 
 const TUTORIAL_STEPS = [
   {
@@ -60,7 +62,8 @@ export default function HomeScreen() {
     router.push('/list');
   };
 
-  const nextStep = () => {
+  const nextStep = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (currentStep < TUTORIAL_STEPS.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {
@@ -68,11 +71,19 @@ export default function HomeScreen() {
     }
   };
 
+  const prevStep = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (currentStep > 0) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <Pressable 
         style={styles.helpButton}
-        onPress={() => {
+        onPress={async () => {
+          await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           setCurrentStep(0);
           setShowTutorial(true);
         }}
@@ -103,26 +114,48 @@ export default function HomeScreen() {
             <Text style={styles.tutorialTitle}>{TUTORIAL_STEPS[currentStep].title}</Text>
             <Text style={styles.tutorialDescription}>{TUTORIAL_STEPS[currentStep].description}</Text>
             
-            <View style={styles.tutorialProgress}>
-              {TUTORIAL_STEPS.map((_, index) => (
-                <View
-                  key={index}
-                  style={[
-                    styles.progressDot,
-                    index === currentStep && styles.progressDotActive
-                  ]}
-                />
-              ))}
+            <View style={styles.navigationContainer}>
+              {currentStep > 0 && (
+                <Pressable 
+                  style={[styles.navButton, { left: 10 }]} 
+                  onPress={prevStep}
+                >
+                  <FontAwesome name="chevron-left" size={24} color="#4A90E2" />
+                </Pressable>
+              )}
+              
+              <View style={styles.tutorialProgress}>
+                {TUTORIAL_STEPS.map((_, index) => (
+                  <View
+                    key={index}
+                    style={[
+                      styles.progressDot,
+                      index === currentStep && styles.progressDotActive
+                    ]}
+                  />
+                ))}
+              </View>
+              
+              {currentStep < TUTORIAL_STEPS.length - 1 && (
+                <Pressable 
+                  style={[styles.navButton, { right: 10 }]} 
+                  onPress={nextStep}
+                >
+                  <FontAwesome name="chevron-right" size={24} color="#4A90E2" />
+                </Pressable>
+              )}
             </View>
 
-            <Pressable 
-              style={styles.tutorialButton} 
-              onPress={nextStep}
-            >
-              <Text style={styles.tutorialButtonText}>
-                {currentStep === TUTORIAL_STEPS.length - 1 ? "Get Started!" : "Next"}
-              </Text>
-            </Pressable>
+            {currentStep === TUTORIAL_STEPS.length - 1 && (
+              <Pressable 
+                style={styles.tutorialButton} 
+                onPress={handleTutorialComplete}
+              >
+                <Text style={styles.tutorialButtonText}>
+                  Get Started!
+                </Text>
+              </Pressable>
+            )}
           </View>
         </View>
       </Modal>
@@ -218,7 +251,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 30,
     borderRadius: 25,
-    marginTop: 10,
   },
   tutorialButtonText: {
     color: 'white',
@@ -227,8 +259,8 @@ const styles = StyleSheet.create({
   },
   tutorialProgress: {
     flexDirection: 'row',
-    marginBottom: 20,
     gap: 8,
+    justifyContent: 'center',
   },
   progressDot: {
     width: 8,
@@ -281,5 +313,22 @@ const styles = StyleSheet.create({
   arrow: {
     fontSize: 24,
     marginRight: 15,
+  },
+  navigationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    marginBottom: 30,
+    position: 'relative',
+  },
+  navButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'absolute',
   },
 });

@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { StyleSheet, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import { StyleSheet, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Keyboard } from 'react-native';
 import { View, Text, Pressable, ScrollView } from 'react-native';
 import { db } from '../../firebaseConfig';
 import { collection, addDoc, query, onSnapshot, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import config from '../../config';
+import * as Haptics from 'expo-haptics';
 
 interface GroceryItem {
   id: string;
@@ -135,6 +136,7 @@ export default function ListScreen() {
     if (newItem.trim() === '' || isAddingItem) return;
     
     try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
       setIsAddingItem(true);
       const category = await categorizeItem(newItem.trim());
       await addDoc(collection(db, 'groceryItems'), {
@@ -145,6 +147,7 @@ export default function ListScreen() {
       setNewItem('');
     } catch (error) {
       console.error('Error adding item:', error);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setIsAddingItem(false);
     }
@@ -152,20 +155,24 @@ export default function ListScreen() {
 
   const toggleItem = async (id: string, completed: boolean) => {
     try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       const itemRef = doc(db, 'groceryItems', id);
       await updateDoc(itemRef, {
         completed: !completed,
       });
     } catch (error) {
       console.error('Error toggling item:', error);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
   };
 
   const deleteItem = async (id: string) => {
     try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
       await deleteDoc(doc(db, 'groceryItems', id));
     } catch (error) {
       console.error('Error deleting item:', error);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
   };
 
@@ -182,10 +189,14 @@ export default function ListScreen() {
     <KeyboardAvoidingView 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
+      keyboardVerticalOffset={100}
     >
       <Text style={styles.title}>Grocery List</Text>
       
-      <ScrollView style={styles.listContainer}>
+      <ScrollView 
+        style={styles.listContainer}
+        keyboardShouldPersistTaps="handled"
+      >
         {Object.entries(itemsByCategory).map(([category, categoryItems]) => (
           <View key={category} style={styles.categoryContainer}>
             <Text style={styles.categoryTitle}>{category}</Text>
@@ -195,6 +206,7 @@ export default function ListScreen() {
                 style={[styles.item, item.completed && styles.itemCompleted]}
                 onPress={() => toggleItem(item.id, item.completed)}
                 onLongPress={() => deleteItem(item.id)}
+                onPressIn={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
               >
                 <Text style={[
                   styles.itemText,
@@ -222,6 +234,7 @@ export default function ListScreen() {
           style={[styles.addButton, isAddingItem && styles.addButtonDisabled]} 
           onPress={addItem}
           disabled={isAddingItem}
+          onPressIn={() => !isAddingItem && Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
         >
           {isAddingItem ? (
             <ActivityIndicator color="#fff" />
@@ -245,6 +258,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
     marginBottom: 20,
+    marginTop: 40,
   },
   listContainer: {
     flex: 1,
@@ -282,6 +296,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+    paddingBottom: Platform.OS === 'ios' ? 20 : 0,
   },
   input: {
     flex: 1,
@@ -297,11 +312,15 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     alignItems: 'center',
     justifyContent: 'center',
+    padding: 0,
   },
   addButtonText: {
     color: '#fff',
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 28,
+    fontWeight: '600',
+    lineHeight: 28,
+    textAlign: 'center',
+    marginTop: 1,
   },
   inputDisabled: {
     opacity: 0.7,
