@@ -1,8 +1,5 @@
 import { StyleSheet } from 'react-native';
 import { View, Text } from 'react-native';
-import { AccessibleButton } from '../components/AccessibleButton';
-
-import EditScreenInfo from '../../components/EditScreenInfo';
 
 export default function HomeScreen() {
   return (

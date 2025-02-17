@@ -30,7 +30,8 @@ export default function TabLayout() {
           fontSize: 16,
         },
         tabBarIconStyle: {
-          size: 30,
+          width: 30,
+          height: 30,
         },
       }}
     >

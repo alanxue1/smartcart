@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "NaviCart-new",
-    "slug": "NaviCart-new",
+    "name": "NaviCart",
+    "slug": "NaviCart",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
