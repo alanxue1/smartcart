@@ -1,8 +1,7 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Link, Tabs } from 'expo-router';
-import { Pressable, useColorScheme } from 'react-native';
-
-import Colors from '../../constants/Colors';
+import { Tabs } from 'expo-router';
+import { useColorScheme } from 'react-native';
+import * as Haptics from 'expo-haptics';
 
 /**
  * You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
@@ -20,34 +19,52 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-      }}>
+        tabBarStyle: {
+          height: 80,
+          paddingBottom: 20,
+          backgroundColor: colorScheme === 'dark' ? '#000000' : '#FFFFFF',
+        },
+        tabBarActiveTintColor: colorScheme === 'dark' ? '#FFFFFF' : '#000000',
+        tabBarInactiveTintColor: colorScheme === 'dark' ? '#666666' : '#999999',
+        tabBarLabelStyle: {
+          fontSize: 16,
+        },
+        tabBarIconStyle: {
+          size: 30,
+        },
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Tab One',
-          tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
-          headerRight: () => (
-            <Link href="/modal" asChild>
-              <Pressable>
-                {({ pressed }) => (
-                  <FontAwesome
-                    name="info-circle"
-                    size={25}
-                    color={Colors[colorScheme ?? 'light'].text}
-                    style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }}
-                  />
-                )}
-              </Pressable>
-            </Link>
-          ),
+          title: 'Home',
+          tabBarIcon: ({ color }) => <FontAwesome size={30} name="home" color={color} />,
+          tabBarAccessibilityLabel: "Home Screen",
+        }}
+        listeners={{
+          tabPress: () => Haptics.selectionAsync(),
         }}
       />
       <Tabs.Screen
-        name="two"
+        name="map"
         options={{
-          title: 'Tab Two',
-          tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
+          title: 'Store Map',
+          tabBarIcon: ({ color }) => <FontAwesome size={30} name="map" color={color} />,
+          tabBarAccessibilityLabel: "Store Map Screen",
+        }}
+        listeners={{
+          tabPress: () => Haptics.selectionAsync(),
+        }}
+      />
+      <Tabs.Screen
+        name="list"
+        options={{
+          title: 'Shopping List',
+          tabBarIcon: ({ color }) => <FontAwesome size={30} name="list" color={color} />,
+          tabBarAccessibilityLabel: "Shopping List Screen",
+        }}
+        listeners={{
+          tabPress: () => Haptics.selectionAsync(),
         }}
       />
     </Tabs>
