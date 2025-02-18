@@ -310,20 +310,21 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
     padding: 20,
+    paddingTop: 10,
   },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 20,
-    marginTop: 40,
+    marginBottom: 15,
+    marginTop: 15,
   },
   listContainer: {
     flex: 1,
     marginBottom: 20,
   },
   categoryContainer: {
-    marginBottom: 20,
+    marginBottom: 15,
   },
   categoryTitle: {
     fontSize: 18,

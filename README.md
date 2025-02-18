@@ -6,6 +6,7 @@ A smart navigation app that uses AI to automatically categorize items and help y
 
 - 🤖 AI-powered item categorization using Google's Gemini Pro
 - 📱 Real-time grocery list syncing with Firebase
+- 📍 Accurate indoor positioning and navigation using Mappedin's API
 - 🗂️ Automatic categorization into:
   - Produce
   - Dairy
@@ -26,6 +27,7 @@ A smart navigation app that uses AI to automatically categorize items and help y
 - Firebase Firestore
 - Google Gemini Pro API
 - React Native Navigation (Expo Router)
+- Mappedin's API
 
 ## Setup
 
