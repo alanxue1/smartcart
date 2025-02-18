@@ -14,14 +14,41 @@ interface GroceryItem {
 }
 
 // Food categories with common items
-const FOOD_CATEGORIES = {
-  'Produce': ['apple', 'banana', 'orange', 'lettuce', 'tomato', 'carrot', 'onion', 'potato', 'broccoli', 'spinach'],
-  'Dairy': ['milk', 'cheese', 'yogurt', 'butter', 'cream', 'eggs'],
-  'Meat': ['chicken', 'beef', 'pork', 'fish', 'salmon', 'turkey', 'ham'],
-  'Pantry': ['rice', 'pasta', 'bread', 'cereal', 'flour', 'sugar', 'oil'],
-  'Snacks': ['chips', 'cookies', 'crackers', 'nuts', 'candy'],
-  'Beverages': ['water', 'juice', 'soda', 'coffee', 'tea'],
-  'Frozen': ['ice cream', 'frozen pizza', 'frozen vegetables'],
+const FOOD_CATEGORIES: Record<string, readonly string[]> = {
+  'Produce': [
+    'apple', 'banana', 'orange', 'lettuce', 'tomato', 'carrot', 'onion', 'potato', 'broccoli', 'spinach',
+    'cucumber', 'pepper', 'garlic', 'lemon', 'lime', 'avocado', 'celery', 'mushroom', 'zucchini', 'kale',
+    'fresh herbs', 'fresh fruit', 'fresh vegetable'
+  ],
+  'Dairy': [
+    'milk', 'cheese', 'yogurt', 'butter', 'cream', 'eggs', 'sour cream', 'cottage cheese', 'cream cheese',
+    'half and half', 'whipped cream', 'heavy cream', 'almond milk', 'oat milk', 'soy milk'
+  ],
+  'Meat': [
+    'chicken', 'beef', 'pork', 'turkey', 'ham', 'steak', 'ground beef', 'bacon', 'sausage', 'lamb',
+    'ground turkey', 'ground pork', 'veal', 'duck', 'fresh meat', 'deli meat', 'hot dog', 'meatball'
+  ],
+  'Seafood': [
+    'fish', 'salmon', 'tuna', 'shrimp', 'crab', 'lobster', 'scallop', 'mussel', 'clam', 'oyster',
+    'tilapia', 'cod', 'halibut', 'fresh fish', 'fresh seafood', 'sushi grade', 'calamari', 'octopus'
+  ],
+  'Pantry': [
+    'rice', 'pasta', 'bread', 'cereal', 'flour', 'sugar', 'oil', 'vinegar', 'sauce', 'spice',
+    'seasoning', 'canned', 'dried', 'baking', 'condiment', 'syrup', 'honey', 'peanut butter',
+    'jam', 'jelly', 'bean', 'lentil', 'grain'
+  ],
+  'Snacks': [
+    'chips', 'cookies', 'crackers', 'nuts', 'candy', 'chocolate', 'popcorn', 'pretzel', 'granola bar',
+    'protein bar', 'trail mix', 'dried fruit', 'gummy', 'snack'
+  ],
+  'Beverages': [
+    'water', 'juice', 'soda', 'coffee', 'tea', 'beer', 'wine', 'alcohol', 'drink', 'sparkling water',
+    'energy drink', 'sports drink', 'orange juice', 'apple juice', 'grape juice', 'coconut water'
+  ],
+  'Frozen': [
+    'ice cream', 'frozen pizza', 'frozen vegetables', 'frozen fruit', 'frozen dinner', 'frozen meal',
+    'frozen food', 'frozen', 'ice', 'popsicle', 'frozen yogurt', 'frozen meat', 'frozen fish'
+  ],
   'Other': []
 } as const;
 
@@ -38,7 +65,7 @@ const askAIForCategory = async (item: string): Promise<Category> => {
       body: JSON.stringify({
         contents: [{
           parts: [{
-            text: `Categorize this grocery item: "${item}" into exactly one of these categories: Produce, Dairy, Meat, Pantry, Snacks, Beverages, Frozen. Reply with just the category name and nothing else.`
+            text: `Categorize this grocery item: "${item}" into exactly one of these categories: Produce, Dairy, Meat, Seafood, Pantry, Snacks, Beverages, Frozen, Other. Reply with just the category name and nothing else.`
           }]
         }],
         generationConfig: {
@@ -86,9 +113,13 @@ const askAIForCategory = async (item: string): Promise<Category> => {
       fallbackCategory = 'Produce';
     } else if (lowercaseItem.includes('frozen')) {
       fallbackCategory = 'Frozen';
-    } else if (lowercaseItem.includes('milk') || lowercaseItem.includes('cheese'))  {
+    } else if (lowercaseItem.includes('milk') || lowercaseItem.includes('cheese')) {
       fallbackCategory = 'Dairy';
-    } else if (lowercaseItem.includes('meat') || lowercaseItem.includes('chicken') || lowercaseItem.includes('fish')) {
+    } else if (lowercaseItem.includes('fish') || lowercaseItem.includes('seafood') || 
+               lowercaseItem.includes('shrimp') || lowercaseItem.includes('crab')) {
+      fallbackCategory = 'Seafood';
+    } else if (lowercaseItem.includes('meat') || lowercaseItem.includes('chicken') || 
+               lowercaseItem.includes('beef') || lowercaseItem.includes('pork')) {
       fallbackCategory = 'Meat';
     }
     
@@ -98,11 +129,32 @@ const askAIForCategory = async (item: string): Promise<Category> => {
 };
 
 const categorizeItem = async (text: string): Promise<Category> => {
-  const lowercaseText = text.toLowerCase();
+  const lowercaseText = text.toLowerCase().trim();
   
-  // First try the predefined categories
+  // Check for exact matches first
   for (const [category, items] of Object.entries(FOOD_CATEGORIES)) {
-    if (items.some(item => lowercaseText.includes(item))) {
+    if (items.includes(lowercaseText)) {
+      return category as Category;
+    }
+  }
+  
+  // Check for compound words (e.g., "orange juice" should match "orange juice" in beverages, not "orange" in produce)
+  for (const [category, items] of Object.entries(FOOD_CATEGORIES)) {
+    const compoundMatch = items.find(item => 
+      item.includes(' ') && lowercaseText.includes(item)
+    );
+    if (compoundMatch) {
+      return category as Category;
+    }
+  }
+  
+  // Check for partial matches
+  for (const [category, items] of Object.entries(FOOD_CATEGORIES)) {
+    const partialMatch = items.find(item => 
+      lowercaseText.includes(item) || 
+      item.includes(lowercaseText)
+    );
+    if (partialMatch) {
       return category as Category;
     }
   }
