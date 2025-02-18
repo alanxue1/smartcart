@@ -5,6 +5,8 @@ import { db } from '../../firebaseConfig';
 import { collection, addDoc, query, onSnapshot, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import config from '../../config';
 import * as Haptics from 'expo-haptics';
+import * as Speech from 'expo-speech';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 
 interface GroceryItem {
   id: string;
@@ -237,6 +239,20 @@ export default function ListScreen() {
     return acc;
   }, {} as Record<string, GroceryItem[]>);
 
+  const speakItem = async (text: string, category: string) => {
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      const utterance = `${text}`; // maybe  add in ${category} (?)
+      await Speech.speak(utterance, {
+        language: 'en',
+        pitch: 1,
+        rate: 0.9,
+      });
+    } catch (error) {
+      console.error('Error speaking item:', error);
+    }
+  };
+
   return (
     <KeyboardAvoidingView 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -253,23 +269,30 @@ export default function ListScreen() {
           <View key={category} style={styles.categoryContainer}>
             <Text style={styles.categoryTitle}>{category}</Text>
             {categoryItems.map((item) => (
-              <Pressable
-                key={item.id}
-                style={[
-                  styles.item,
-                  item.completed && styles.itemCompleted
-                ]}
-                onPress={() => toggleItem(item.id, item.completed)}
-                onLongPress={() => deleteItem(item.id)}
-                onPressIn={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
-              >
-                <Text style={[
-                  styles.itemText,
-                  item.completed && styles.itemTextCompleted
-                ]}>
-                  {item.text}
-                </Text>
-              </Pressable>
+              <View key={item.id} style={styles.itemContainer}>
+                <Pressable
+                  style={[
+                    styles.item,
+                    item.completed && styles.itemCompleted
+                  ]}
+                  onPress={() => toggleItem(item.id, item.completed)}
+                  onLongPress={() => deleteItem(item.id)}
+                  onPressIn={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
+                >
+                  <Text style={[
+                    styles.itemText,
+                    item.completed && styles.itemTextCompleted
+                  ]}>
+                    {item.text}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  style={styles.speakerButton}
+                  onPress={() => speakItem(item.text, category)}
+                >
+                  <FontAwesome name="volume-up" size={20} color="#4A90E2" />
+                </Pressable>
+              </View>
             ))}
           </View>
         ))}
@@ -333,11 +356,16 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     paddingLeft: 4,
   },
+  itemContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
   item: {
     backgroundColor: '#f0f0f0',
     padding: 16,
     borderRadius: 10,
-    marginBottom: 10,
+    flex: 1,
   },
   itemCompleted: {
     backgroundColor: '#e8e8e8',
@@ -387,5 +415,22 @@ const styles = StyleSheet.create({
   },
   addButtonDisabled: {
     opacity: 0.7,
+  },
+  speakerButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#f0f0f0',
+    marginLeft: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
 }); 

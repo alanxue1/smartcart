@@ -42,7 +42,8 @@
     "react-native-screens": "~4.4.0",
     "react-native-sfsymbols": "^1.2.2",
     "react-native-web": "~0.19.6",
-    "react-native-webview": "13.12.5"
+    "react-native-webview": "13.12.5",
+    "expo-speech": "~13.0.1"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
