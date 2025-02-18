@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { StyleSheet, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Keyboard } from 'react-native';
+import { StyleSheet, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Keyboard, Alert } from 'react-native';
 import { View, Text, Pressable, ScrollView } from 'react-native';
 import { db } from '../../firebaseConfig';
 import { collection, addDoc, query, onSnapshot, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import config from '../../config';
 import * as Haptics from 'expo-haptics';
 import * as Speech from 'expo-speech';
+import * as Audio from 'expo-av';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 
 interface GroceryItem {
@@ -199,6 +200,14 @@ export default function ListScreen() {
         category,
       });
       setNewItem('');
+      
+      // Speak the added item
+      Speech.speak(`Added ${newItem.trim()} to ${category}`, {
+        language: 'en',
+        pitch: 1,
+        rate: 0.9,
+        volume: 1,
+      });
     } catch (error) {
       console.error('Error adding item:', error);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -207,12 +216,20 @@ export default function ListScreen() {
     }
   };
 
-  const toggleItem = async (id: string, completed: boolean) => {
+  const toggleItem = async (id: string, completed: boolean, text: string) => {
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       const itemRef = doc(db, 'groceryItems', id);
       await updateDoc(itemRef, {
         completed: !completed,
+      });
+
+      // Speak when marking as completed or uncompleted
+      Speech.speak(completed ? `Added back ${text}` : `Removed ${text}`, {
+        language: 'en',
+        pitch: 1,
+        rate: 0.9,
+        volume: 1,
       });
     } catch (error) {
       console.error('Error toggling item:', error);
@@ -230,6 +247,40 @@ export default function ListScreen() {
     }
   };
 
+  const clearAllItems = async () => {
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      Alert.alert(
+        "Clear All Items",
+        "Are you sure you want to remove all items from your list?",
+        [
+          {
+            text: "Cancel",
+            style: "cancel"
+          },
+          {
+            text: "Clear All",
+            style: "destructive",
+            onPress: async () => {
+              await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              const batch = items.map(item => deleteDoc(doc(db, 'groceryItems', item.id)));
+              await Promise.all(batch);
+              Speech.speak("Cleared all items", {
+                language: 'en',
+                pitch: 1,
+                rate: 0.9,
+                volume: 1,
+              });
+            }
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('Error clearing items:', error);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    }
+  };
+
   // Group items by category
   const itemsByCategory = items.reduce((acc, item) => {
     if (!acc[item.category]) {
@@ -239,17 +290,86 @@ export default function ListScreen() {
     return acc;
   }, {} as Record<string, GroceryItem[]>);
 
+  const showHelpAlert = () => {
+    Alert.alert(
+      "Text-to-Speech Help",
+      "To hear items read aloud, make sure your device is not in silent mode and tap the speaker icon next to any item.",
+      [{ text: "OK", style: "default" }]
+    );
+  };
+
   const speakItem = async (text: string, category: string) => {
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      const utterance = `${text}`; // maybe  add in ${category} (?)
-      await Speech.speak(utterance, {
+      await Speech.speak(text, {
         language: 'en',
         pitch: 1,
         rate: 0.9,
+        volume: 1,
       });
     } catch (error) {
       console.error('Error speaking item:', error);
+    }
+  };
+
+  const speakCategoryItems = async (category: string, items: GroceryItem[]) => {
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      const uncheckedItems = items.filter(item => !item.completed);
+      
+      if (uncheckedItems.length === 0) {
+        Speech.speak(`No unchecked items in ${category}`, {
+          language: 'en',
+          pitch: 1,
+          rate: 0.9,
+          volume: 1,
+        });
+        return;
+      }
+
+      const itemsList = uncheckedItems.map(item => item.text).join(', ');
+      Speech.speak(`${category} items: ${itemsList}`, {
+        language: 'en',
+        pitch: 1,
+        rate: 0.9,
+        volume: 1,
+      });
+    } catch (error) {
+      console.error('Error speaking category items:', error);
+    }
+  };
+
+  const deleteCategoryItems = async (category: string, items: GroceryItem[]) => {
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      Alert.alert(
+        `Clear ${category}`,
+        `Are you sure you want to remove all items from ${category}?`,
+        [
+          {
+            text: "Cancel",
+            style: "cancel"
+          },
+          {
+            text: "Clear",
+            style: "destructive",
+            onPress: async () => {
+              await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              const batch = items.map(item => deleteDoc(doc(db, 'groceryItems', item.id)));
+              await Promise.all(batch);
+              Speech.speak(`Cleared all items from ${category}`, {
+                language: 'en',
+                pitch: 1,
+                rate: 0.9,
+                volume: 1,
+              });
+            }
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('Error clearing category items:', error);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
   };
 
@@ -259,7 +379,23 @@ export default function ListScreen() {
       style={styles.container}
       keyboardVerticalOffset={100}
     >
-      <Text style={styles.title}>Grocery List</Text>
+      <View style={styles.header}>
+        <Text style={styles.title}>Grocery List</Text>
+        <View style={styles.headerButtons}>
+          <Pressable 
+            style={styles.clearButton}
+            onPress={clearAllItems}
+          >
+            <FontAwesome name="trash" size={20} color="#FF3B30" />
+          </Pressable>
+          <Pressable 
+            style={styles.helpButton}
+            onPress={showHelpAlert}
+          >
+            <FontAwesome name="question-circle" size={24} color="#4A90E2" />
+          </Pressable>
+        </View>
+      </View>
       
       <ScrollView 
         style={styles.listContainer}
@@ -267,7 +403,23 @@ export default function ListScreen() {
       >
         {Object.entries(itemsByCategory).map(([category, categoryItems]) => (
           <View key={category} style={styles.categoryContainer}>
-            <Text style={styles.categoryTitle}>{category}</Text>
+            <View style={styles.categoryHeader}>
+              <Text style={styles.categoryTitle}>{category}</Text>
+              <View style={styles.categoryActions}>
+                <Pressable
+                  style={styles.categoryButton}
+                  onPress={() => speakCategoryItems(category, categoryItems)}
+                >
+                  <FontAwesome name="volume-up" size={16} color="#4A90E2" />
+                </Pressable>
+                <Pressable
+                  style={styles.categoryButton}
+                  onPress={() => deleteCategoryItems(category, categoryItems)}
+                >
+                  <FontAwesome name="trash" size={16} color="#FF3B30" />
+                </Pressable>
+              </View>
+            </View>
             {categoryItems.map((item) => (
               <View key={item.id} style={styles.itemContainer}>
                 <Pressable
@@ -275,7 +427,7 @@ export default function ListScreen() {
                     styles.item,
                     item.completed && styles.itemCompleted
                   ]}
-                  onPress={() => toggleItem(item.id, item.completed)}
+                  onPress={() => toggleItem(item.id, item.completed, item.text)}
                   onLongPress={() => deleteItem(item.id)}
                   onPressIn={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
                 >
@@ -285,12 +437,6 @@ export default function ListScreen() {
                   ]}>
                     {item.text}
                   </Text>
-                </Pressable>
-                <Pressable
-                  style={styles.speakerButton}
-                  onPress={() => speakItem(item.text, category)}
-                >
-                  <FontAwesome name="volume-up" size={20} color="#4A90E2" />
                 </Pressable>
               </View>
             ))}
@@ -335,12 +481,28 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingTop: 10,
   },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+    marginTop: 15,
+  },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 15,
-    marginTop: 15,
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 15,
+  },
+  clearButton: {
+    padding: 8,
+  },
+  helpButton: {
+    padding: 8,
   },
   listContainer: {
     flex: 1,
@@ -349,12 +511,37 @@ const styles = StyleSheet.create({
   categoryContainer: {
     marginBottom: 15,
   },
+  categoryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+    paddingLeft: 4,
+  },
   categoryTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#4A90E2',
-    marginBottom: 10,
-    paddingLeft: 4,
+    marginRight: 10,
+  },
+  categoryActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  categoryButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   itemContainer: {
     flexDirection: 'row',
@@ -415,22 +602,5 @@ const styles = StyleSheet.create({
   },
   addButtonDisabled: {
     opacity: 0.7,
-  },
-  speakerButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#f0f0f0',
-    marginLeft: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
   },
 }); 
