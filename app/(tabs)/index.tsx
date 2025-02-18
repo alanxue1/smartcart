@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { Link } from 'expo-router';
 
 const TUTORIAL_STEPS = [
   {
@@ -93,15 +94,26 @@ export default function HomeScreen() {
 
       <View style={styles.welcomeContainer}>
         <Text style={styles.title}>Welcome to</Text>
-        <Text style={styles.subtitle}>NaviCart</Text>
-        <Text style={styles.description}>
-          Simplify your shopping experience with smart navigation
+        <Text style={styles.appName}>NaviCart</Text>
+        <View style={styles.iconContainer}>
+          <FontAwesome name="shopping-cart" size={80} color="#4A90E2" style={styles.cartIcon} />
+          <View style={styles.markerContainer}>
+            <View style={styles.markerBackground}>
+              <FontAwesome name="map-marker" size={40} color="#4A90E2" />
+            </View>
+          </View>
+          <View style={styles.markerShadow} />
+        </View>
+        <Text style={styles.subtitle}>
+          Simplify your shopping experience{'\n'}with smart navigation
         </Text>
       </View>
       
-      <Pressable style={styles.button} onPress={handleCreateList}>
-        <Text style={styles.buttonText}>Create Grocery List</Text>
-      </Pressable>
+      <Link href="/list" asChild>
+        <Pressable style={styles.button} onPress={handleCreateList}>
+          <Text style={styles.buttonText}>Create Grocery List</Text>
+        </Pressable>
+      </Link>
 
       <Modal
         animationType="slide"
@@ -180,17 +192,59 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 8,
   },
-  subtitle: {
-    fontSize: 32,
+  appName: {
+    fontSize: 42,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 16,
+    marginBottom: 20,
   },
-  description: {
-    fontSize: 18,
+  iconContainer: {
+    position: 'relative',
+    width: 120,
+    height: 120,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  cartIcon: {
+    marginBottom: 0,
+    transform: [{scale: 1.1}],
+  },
+  markerContainer: {
+    position: 'absolute',
+    top: -15,
+    right: -5,
+    zIndex: 2,
+  },
+  markerBackground: {
+    backgroundColor: 'white',
+    borderRadius: 25,
+    padding: 8,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  markerShadow: {
+    position: 'absolute',
+    top: -25,
+    right: -25,
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: 'rgba(74, 144, 226, 0.15)',
+    zIndex: 1,
+  },
+  subtitle: {
+    fontSize: 20,
     color: '#666',
     textAlign: 'center',
-    maxWidth: '80%',
+    marginBottom: 40,
+    lineHeight: 28,
   },
   button: {
     backgroundColor: '#4A90E2',
