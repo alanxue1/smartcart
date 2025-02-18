@@ -1,5 +1,4 @@
-import { StyleSheet } from 'react-native';
-import { View, Text, Pressable, Modal } from 'react-native';
+import { StyleSheet, View, Text, Pressable, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -14,7 +13,7 @@ const TUTORIAL_STEPS = [
   },
   {
     title: "Adding Items ➕",
-    description: "Type your grocery item in the input box and tap the + button or press enter. Our AI will automatically categorize it for you!"
+    description: "Speak or type your grocery item in the input box and tap the + button or press enter."
   },
   {
     title: "Managing Items ✅",
@@ -22,11 +21,15 @@ const TUTORIAL_STEPS = [
   },
   {
     title: "Smart Categories 🤖",
-    description: "Your items are automatically sorted into categories like Produce, Dairy, Meat, etc. This helps you shop more efficiently!"
+    description: "By leverging AI, your items are automatically sorted into categories like Produce, Dairy, Meat, etc. This helps you shop more efficiently!"
   },
   {
     title: "Real-time Sync 🔄",
     description: "Your list updates in real-time across all your devices. Changes are saved automatically!"
+  },
+  {
+    title: "Efficient Navigation 🛍️",
+    description: "Our AI will navigate you to the item in the store. Just follow the directions and you'll be done in no time!"
   }
 ];
 
@@ -350,23 +353,6 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 24,
     fontWeight: 'bold',
-  },
-  helpArrowContainer: {
-    position: 'absolute',
-    top: 95,
-    right: 25,
-    alignItems: 'flex-end',
-    zIndex: 1,
-  },
-  helpArrowText: {
-    color: '#4A90E2',
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  arrow: {
-    fontSize: 24,
-    marginRight: 15,
   },
   navigationContainer: {
     flexDirection: 'row',

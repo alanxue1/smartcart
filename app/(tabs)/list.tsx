@@ -255,7 +255,10 @@ export default function ListScreen() {
             {categoryItems.map((item) => (
               <Pressable
                 key={item.id}
-                style={[styles.item, item.completed && styles.itemCompleted]}
+                style={[
+                  styles.item,
+                  item.completed && styles.itemCompleted
+                ]}
                 onPress={() => toggleItem(item.id, item.completed)}
                 onLongPress={() => deleteItem(item.id)}
                 onPressIn={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
@@ -274,7 +277,10 @@ export default function ListScreen() {
 
       <View style={styles.inputContainer}>
         <TextInput
-          style={[styles.input, isAddingItem && styles.inputDisabled]}
+          style={[
+            styles.input,
+            isAddingItem && styles.inputDisabled
+          ]}
           value={newItem}
           onChangeText={setNewItem}
           placeholder="Add new item..."
@@ -356,6 +362,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 10,
     fontSize: 16,
+    color: '#333',
   },
   addButton: {
     backgroundColor: '#4A90E2',
