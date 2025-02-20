@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
+import * as Speech from 'expo-speech';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Link } from 'expo-router';
 
@@ -37,6 +38,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const [showTutorial, setShowTutorial] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
   useEffect(() => {
     checkFirstTime();
@@ -82,6 +84,36 @@ export default function HomeScreen() {
     }
   };
 
+  const speakTutorialContent = async () => {
+    // Remove emojis from title and description using regex
+    const cleanTitle = TUTORIAL_STEPS[currentStep].title.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2700}-\u{27BF}]|[\u{2600}-\u{26FF}]/gu, '').trim();
+    const cleanDescription = TUTORIAL_STEPS[currentStep].description.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2700}-\u{27BF}]|[\u{2600}-\u{26FF}]/gu, '').trim();
+    const content = `${cleanTitle}. ${cleanDescription}`;
+    
+    if (isSpeaking) {
+      await Speech.stop();
+      setIsSpeaking(false);
+    } else {
+      setIsSpeaking(true);
+      await Speech.speak(content, {
+        onDone: () => setIsSpeaking(false),
+        onError: () => setIsSpeaking(false),
+      });
+    }
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  useEffect(() => {
+    return () => {
+      Speech.stop();
+    };
+  }, []);
+
+  useEffect(() => {
+    Speech.stop();
+    setIsSpeaking(false);
+  }, [currentStep]);
+
   return (
     <View style={styles.container}>
       <Pressable 
@@ -126,7 +158,19 @@ export default function HomeScreen() {
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <Text style={styles.tutorialTitle}>{TUTORIAL_STEPS[currentStep].title}</Text>
+            <View style={styles.tutorialHeader}>
+              <Text style={styles.tutorialTitle}>{TUTORIAL_STEPS[currentStep].title}</Text>
+              <Pressable 
+                style={styles.speakerButton} 
+                onPress={speakTutorialContent}
+              >
+                <FontAwesome 
+                  name={isSpeaking ? "volume-up" : "volume-off"} 
+                  size={24} 
+                  color="#4A90E2" 
+                />
+              </Pressable>
+            </View>
             <Text style={styles.tutorialDescription}>{TUTORIAL_STEPS[currentStep].description}</Text>
             
             <View style={styles.navigationContainer}>
@@ -289,12 +333,21 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
   },
+  tutorialHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    marginBottom: 15,
+    position: 'relative',
+  },
   tutorialTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 15,
     textAlign: 'center',
+    flex: 1,
+    paddingHorizontal: 40,
   },
   tutorialDescription: {
     fontSize: 16,
@@ -370,5 +423,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     position: 'absolute',
+  },
+  speakerButton: {
+    position: 'absolute',
+    right: 0,
+    padding: 8,
   },
 });

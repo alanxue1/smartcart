@@ -293,7 +293,7 @@ export default function ListScreen() {
   const showHelpAlert = () => {
     Alert.alert(
       "Text-to-Speech Help",
-      "To hear items read aloud, make sure your device is not in silent mode and tap the speaker icon next to any item.",
+      "To hear items read aloud, make sure your device is not in silent mode and tap the speaker icon next to any category.",
       [{ text: "OK", style: "default" }]
     );
   };
