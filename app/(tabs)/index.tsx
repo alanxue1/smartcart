@@ -156,8 +156,14 @@ export default function HomeScreen() {
         visible={showTutorial}
         onRequestClose={handleTutorialComplete}
       >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
+        <Pressable 
+          style={styles.modalContainer} 
+          onPress={handleTutorialComplete}
+        >
+          <Pressable 
+            style={styles.modalContent} 
+            onPress={(e) => e.stopPropagation()}
+          >
             <View style={styles.tutorialHeader}>
               <Text style={styles.tutorialTitle}>{TUTORIAL_STEPS[currentStep].title}</Text>
               <Pressable 
@@ -215,8 +221,8 @@ export default function HomeScreen() {
                 </Text>
               </Pressable>
             )}
-          </View>
-        </View>
+          </Pressable>
+        </Pressable>
       </Modal>
     </View>
   );
@@ -332,6 +338,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 5,
+    position: 'relative',
   },
   tutorialHeader: {
     flexDirection: 'row',

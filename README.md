@@ -83,7 +83,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## 🙏 Acknowledgments
 
 - Big thanks to Kimberly Luu at Mappedin for the API subscription
-- Another huge thanks to Kimberly our amazing client
 - Other inspirations
 
 ## 📞 Contact
