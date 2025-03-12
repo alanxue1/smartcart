@@ -1,6 +1,7 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Tabs } from 'expo-router';
-import { useColorScheme } from 'react-native';
+import { useColorScheme, StyleSheet } from 'react-native';
+import { useTheme } from './index';
 import * as Haptics from 'expo-haptics';
 
 /**
@@ -15,23 +16,33 @@ function TabBarIcon(props: {
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const { isAccessibleMode, primaryColor } = useTheme();
 
   return (
     <Tabs
       screenOptions={{
+        tabBarActiveTintColor: primaryColor,
+        tabBarInactiveTintColor: isAccessibleMode ? '#aaa' : '#666',
         tabBarStyle: {
-          height: 80,
-          paddingBottom: 20,
-          backgroundColor: colorScheme === 'dark' ? '#000000' : '#FFFFFF',
+          backgroundColor: isAccessibleMode ? '#111' : '#fff',
+          borderTopColor: isAccessibleMode ? primaryColor : '#e0e0e0',
+          borderTopWidth: isAccessibleMode ? 1 : 0.5,
+          height: 60,
+          paddingBottom: 8,
+          paddingTop: 8,
         },
-        tabBarActiveTintColor: colorScheme === 'dark' ? '#FFFFFF' : '#000000',
-        tabBarInactiveTintColor: colorScheme === 'dark' ? '#666666' : '#999999',
+        headerStyle: {
+          backgroundColor: isAccessibleMode ? '#111' : '#fff',
+          borderBottomColor: isAccessibleMode ? primaryColor : '#e0e0e0',
+          borderBottomWidth: isAccessibleMode ? 1 : 0.5,
+        },
+        headerTitleStyle: {
+          color: isAccessibleMode ? primaryColor : '#333',
+          fontWeight: isAccessibleMode ? '700' : '600',
+        },
         tabBarLabelStyle: {
-          fontSize: 16,
-        },
-        tabBarIconStyle: {
-          width: 30,
-          height: 30,
+          fontSize: 12,
+          fontWeight: isAccessibleMode ? '700' : '500',
         },
       }}
     >
@@ -39,7 +50,7 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color }) => <FontAwesome size={30} name="home" color={color} />,
+          tabBarIcon: ({ color }) => <TabBarIcon name="home" color={color} />,
           tabBarAccessibilityLabel: "Home Screen",
         }}
         listeners={{
@@ -61,7 +72,7 @@ export default function TabLayout() {
         name="list"
         options={{
           title: 'Shopping List',
-          tabBarIcon: ({ color }) => <FontAwesome size={30} name="list" color={color} />,
+          tabBarIcon: ({ color }) => <TabBarIcon name="list" color={color} />,
           tabBarAccessibilityLabel: "Shopping List Screen",
         }}
         listeners={{

@@ -1,11 +1,91 @@
-import { StyleSheet, View, Text, Pressable, Modal } from 'react-native';
+import { StyleSheet, View, Text, Pressable, Modal, Switch, SafeAreaView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import * as Speech from 'expo-speech';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Link } from 'expo-router';
+
+// Theme context
+type ThemeContextType = {
+  isAccessibleMode: boolean;
+  toggleTheme: () => void;
+  primaryColor: string;
+  buttonSize: string;
+  setButtonSize: (size: string) => void;
+};
+
+const ThemeContext = createContext<ThemeContextType>({
+  isAccessibleMode: false,
+  toggleTheme: () => {},
+  primaryColor: '#4A90E2',
+  buttonSize: 'medium',
+  setButtonSize: () => {},
+});
+
+export const useTheme = () => useContext(ThemeContext);
+
+export function ThemeProvider({ children }: { children: ReactNode }) {
+  const [isAccessibleMode, setIsAccessibleMode] = useState(false);
+  const [buttonSize, setButtonSize] = useState('medium');
+  
+  // Load theme preference from storage
+  useEffect(() => {
+    const loadThemePreference = async () => {
+      try {
+        const storedTheme = await AsyncStorage.getItem('isAccessibleMode');
+        if (storedTheme !== null) {
+          setIsAccessibleMode(storedTheme === 'true');
+        }
+        
+        const storedButtonSize = await AsyncStorage.getItem('buttonSize');
+        if (storedButtonSize) {
+          setButtonSize(storedButtonSize);
+        }
+      } catch (error) {
+        console.error('Error loading preferences:', error);
+      }
+    };
+    
+    loadThemePreference();
+  }, []);
+  
+  // Save theme preference to storage
+  const toggleTheme = async () => {
+    try {
+      const newMode = !isAccessibleMode;
+      setIsAccessibleMode(newMode);
+      await AsyncStorage.setItem('isAccessibleMode', newMode.toString());
+    } catch (error) {
+      console.error('Error saving theme preference:', error);
+    }
+  };
+  
+  const updateButtonSize = async (size: string) => {
+    try {
+      setButtonSize(size);
+      await AsyncStorage.setItem('buttonSize', size);
+    } catch (error) {
+      console.error('Error saving button size:', error);
+    }
+  };
+  
+  // Primary color based on theme
+  const primaryColor = isAccessibleMode ? '#00FFFF' : '#4A90E2';
+  
+  return (
+    <ThemeContext.Provider value={{ 
+      isAccessibleMode, 
+      toggleTheme, 
+      primaryColor,
+      buttonSize,
+      setButtonSize: updateButtonSize
+    }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+}
 
 const TUTORIAL_STEPS = [
   {
@@ -37,8 +117,10 @@ const TUTORIAL_STEPS = [
 export default function HomeScreen() {
   const router = useRouter();
   const [showTutorial, setShowTutorial] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const { isAccessibleMode, toggleTheme, primaryColor, buttonSize, setButtonSize } = useTheme();
 
   useEffect(() => {
     checkFirstTime();
@@ -115,135 +197,334 @@ export default function HomeScreen() {
   }, [currentStep]);
 
   return (
-    <View style={styles.container}>
-      <Pressable 
-        style={styles.helpButton}
-        onPress={async () => {
-          await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          setCurrentStep(0);
-          setShowTutorial(true);
-        }}
-      >
-        <Text style={styles.helpButtonText}>?</Text>
-      </Pressable>
-
-      <View style={styles.welcomeContainer}>
-        <Text style={styles.title}>Welcome to</Text>
-        <Text style={styles.appName}>NaviCart</Text>
-        <View style={styles.iconContainer}>
-          <FontAwesome name="shopping-cart" size={80} color="#4A90E2" style={styles.cartIcon} />
-          <View style={styles.markerContainer}>
-            <View style={styles.markerBackground}>
-              <FontAwesome name="map-marker" size={40} color="#4A90E2" />
-            </View>
-          </View>
-          <View style={styles.markerShadow} />
-        </View>
-        <Text style={styles.subtitle}>
-          Simplify your shopping experience{'\n'}with smart navigation
-        </Text>
-      </View>
-      
-      <Link href="/list" asChild>
-        <Pressable style={styles.button} onPress={handleCreateList}>
-          <Text style={styles.buttonText}>Create Grocery List</Text>
-        </Pressable>
-      </Link>
-
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={showTutorial}
-        onRequestClose={handleTutorialComplete}
-      >
+    <SafeAreaView style={[styles.safeArea, isAccessibleMode && styles.safeAreaAccessible]}>
+      <View style={[styles.container, isAccessibleMode && styles.containerAccessible]}>
         <Pressable 
-          style={styles.modalContainer} 
-          onPress={handleTutorialComplete}
+          style={[
+            styles.helpButton,
+            { backgroundColor: primaryColor }
+          ]}
+          onPress={() => {
+            setCurrentStep(0);
+            setShowTutorial(true);
+          }}
+        >
+          <Text style={styles.helpButtonText}>?</Text>
+        </Pressable>
+
+        <Pressable 
+          style={[
+            styles.settingsButton,
+            { backgroundColor: primaryColor }
+          ]}
+          onPress={() => setShowSettings(true)}
+        >
+          <FontAwesome name="gear" size={36} color="white" />
+        </Pressable>
+
+        <View style={styles.contentContainer}>
+          <View style={styles.welcomeContainer}>
+            <Text style={[styles.welcomeText, isAccessibleMode && styles.welcomeTextAccessible]}>Welcome to</Text>
+            <Text style={[styles.appName, isAccessibleMode && styles.appNameAccessible]}>NaviCart</Text>
+            <Text style={[styles.subtitle, isAccessibleMode && styles.subtitleAccessible]}>
+              Simplify your shopping experience{'\n'}with smart navigation
+            </Text>
+          </View>
+          
+          <View style={styles.buttonContainer}>
+            <Pressable 
+              style={[
+                styles.createButton,
+                { 
+                  backgroundColor: isAccessibleMode ? '#00FFFF' : '#5B9AE8',
+                  borderWidth: isAccessibleMode ? 2 : 0,
+                  borderColor: '#FFFFFF',
+                  shadowColor: isAccessibleMode ? '#00FFFF' : '#000',
+                  shadowOpacity: isAccessibleMode ? 0.8 : 0.4,
+                  shadowRadius: isAccessibleMode ? 10 : 6,
+                  height: buttonSize === 'large' ? 90 : buttonSize === 'medium' ? 80 : 70,
+                  borderRadius: buttonSize === 'large' ? 45 : buttonSize === 'medium' ? 40 : 35,
+                }
+              ]}
+              onPress={() => router.push('/list')}
+            >
+              <Text style={[
+                styles.createButtonText,
+                isAccessibleMode && { color: '#000' },
+                { 
+                  fontSize: buttonSize === 'large' ? 30 : buttonSize === 'medium' ? 26 : 22,
+                  fontWeight: buttonSize === 'large' ? '800' : buttonSize === 'medium' ? '700' : '600',
+                }
+              ]}>
+                Create Grocery List
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={showTutorial}
+          onRequestClose={handleTutorialComplete}
         >
           <Pressable 
-            style={styles.modalContent} 
-            onPress={(e) => e.stopPropagation()}
+            style={styles.modalContainer} 
+            onPress={handleTutorialComplete}
           >
-            <View style={styles.tutorialHeader}>
-              <Text style={styles.tutorialTitle}>{TUTORIAL_STEPS[currentStep].title}</Text>
-              <Pressable 
-                style={styles.speakerButton} 
-                onPress={speakTutorialContent}
-              >
-                <FontAwesome 
-                  name={isSpeaking ? "volume-up" : "volume-off"} 
-                  size={24} 
-                  color="#4A90E2" 
-                />
-              </Pressable>
-            </View>
-            <Text style={styles.tutorialDescription}>{TUTORIAL_STEPS[currentStep].description}</Text>
-            
-            <View style={styles.navigationContainer}>
-              {currentStep > 0 && (
+            <Pressable 
+              style={[styles.modalContent, isAccessibleMode && styles.modalContentAccessible]} 
+              onPress={(e) => e.stopPropagation()}
+            >
+              <View style={styles.tutorialHeader}>
+                <Text style={[styles.tutorialTitle, isAccessibleMode && styles.tutorialTitleAccessible]}>
+                  {currentStep + 1}. {TUTORIAL_STEPS[currentStep].title}
+                </Text>
                 <Pressable 
-                  style={[styles.navButton, { left: 10 }]} 
-                  onPress={prevStep}
+                  style={styles.speakerButton} 
+                  onPress={speakTutorialContent}
                 >
-                  <FontAwesome name="chevron-left" size={24} color="#4A90E2" />
+                  <FontAwesome 
+                    name={isSpeaking ? "volume-up" : "volume-off"} 
+                    size={24} 
+                    color={primaryColor} 
+                  />
+                </Pressable>
+              </View>
+              <Text style={[styles.tutorialDescription, isAccessibleMode && styles.tutorialDescriptionAccessible]}>
+                {TUTORIAL_STEPS[currentStep].description}
+              </Text>
+              
+              <View style={styles.navigationContainer}>
+                {currentStep > 0 && (
+                  <Pressable 
+                    style={[styles.navButton, isAccessibleMode && styles.navButtonAccessible, { left: 10 }]} 
+                    onPress={prevStep}
+                  >
+                    <FontAwesome name="chevron-left" size={24} color={primaryColor} />
+                  </Pressable>
+                )}
+                
+                <View style={styles.tutorialProgress}>
+                  {TUTORIAL_STEPS.map((_, index) => (
+                    <View
+                      key={index}
+                      style={[
+                        styles.progressDot,
+                        isAccessibleMode && styles.progressDotAccessible,
+                        index === currentStep && [styles.progressDotActive, { backgroundColor: primaryColor }]
+                      ]}
+                    />
+                  ))}
+                </View>
+                
+                {currentStep < TUTORIAL_STEPS.length - 1 && (
+                  <Pressable 
+                    style={[styles.navButton, isAccessibleMode && styles.navButtonAccessible, { right: 10 }]} 
+                    onPress={nextStep}
+                  >
+                    <FontAwesome name="chevron-right" size={24} color={primaryColor} />
+                  </Pressable>
+                )}
+              </View>
+
+              {currentStep === TUTORIAL_STEPS.length - 1 && (
+                <Pressable 
+                  style={[styles.tutorialButton, { backgroundColor: primaryColor }]} 
+                  onPress={handleTutorialComplete}
+                >
+                  <Text style={styles.tutorialButtonText}>
+                    Get Started!
+                  </Text>
                 </Pressable>
               )}
+            </Pressable>
+          </Pressable>
+        </Modal>
+
+        {/* Settings Modal */}
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={showSettings}
+          onRequestClose={() => setShowSettings(false)}
+        >
+          <Pressable 
+            style={styles.modalContainer} 
+            onPress={() => setShowSettings(false)}
+          >
+            <Pressable 
+              style={[styles.modalContent, isAccessibleMode && styles.modalContentAccessible]} 
+              onPress={(e) => e.stopPropagation()}
+            >
+              <Text style={[styles.modalTitle, isAccessibleMode && styles.modalTitleAccessible]}>
+                Settings
+              </Text>
               
-              <View style={styles.tutorialProgress}>
-                {TUTORIAL_STEPS.map((_, index) => (
-                  <View
-                    key={index}
-                    style={[
-                      styles.progressDot,
-                      index === currentStep && styles.progressDotActive
-                    ]}
-                  />
-                ))}
+              <View style={styles.settingRow}>
+                <Text style={[styles.settingLabel, isAccessibleMode && styles.settingLabelAccessible]}>
+                  Accessible Mode
+                </Text>
+                <Switch
+                  value={isAccessibleMode}
+                  onValueChange={toggleTheme}
+                  trackColor={{ false: '#767577', true: '#81b0ff' }}
+                  thumbColor={isAccessibleMode ? '#00FFFF' : '#f4f3f4'}
+                  ios_backgroundColor="#3e3e3e"
+                />
               </View>
               
-              {currentStep < TUTORIAL_STEPS.length - 1 && (
+              <Text style={[styles.settingHeader, isAccessibleMode && styles.settingHeaderAccessible]}>
+                Button Size
+              </Text>
+              
+              <View style={styles.buttonSizeOptions}>
                 <Pressable 
-                  style={[styles.navButton, { right: 10 }]} 
-                  onPress={nextStep}
+                  style={[
+                    styles.sizeOption,
+                    buttonSize === 'default' && [styles.sizeOptionSelected, { borderColor: primaryColor }]
+                  ]}
+                  onPress={() => {
+                    setButtonSize('default');
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }}
                 >
-                  <FontAwesome name="chevron-right" size={24} color="#4A90E2" />
+                  <Text style={[
+                    styles.sizeOptionText,
+                    buttonSize === 'default' && { color: primaryColor },
+                    isAccessibleMode && styles.sizeOptionTextAccessible
+                  ]}>
+                    Default
+                  </Text>
                 </Pressable>
-              )}
-            </View>
-
-            {currentStep === TUTORIAL_STEPS.length - 1 && (
+                
+                <Pressable 
+                  style={[
+                    styles.sizeOption,
+                    buttonSize === 'medium' && [styles.sizeOptionSelected, { borderColor: primaryColor }]
+                  ]}
+                  onPress={() => {
+                    setButtonSize('medium');
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }}
+                >
+                  <Text style={[
+                    styles.sizeOptionText,
+                    buttonSize === 'medium' && { color: primaryColor },
+                    isAccessibleMode && styles.sizeOptionTextAccessible
+                  ]}>
+                    Medium
+                  </Text>
+                </Pressable>
+                
+                <Pressable 
+                  style={[
+                    styles.sizeOption,
+                    buttonSize === 'large' && [styles.sizeOptionSelected, { borderColor: primaryColor }]
+                  ]}
+                  onPress={() => {
+                    setButtonSize('large');
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }}
+                >
+                  <Text style={[
+                    styles.sizeOptionText,
+                    buttonSize === 'large' && { color: primaryColor },
+                    isAccessibleMode && styles.sizeOptionTextAccessible
+                  ]}>
+                    Large
+                  </Text>
+                </Pressable>
+              </View>
+              
               <Pressable 
-                style={styles.tutorialButton} 
-                onPress={handleTutorialComplete}
+                style={[styles.closeButton, { backgroundColor: primaryColor }]}
+                onPress={() => setShowSettings(false)}
               >
-                <Text style={styles.tutorialButtonText}>
-                  Get Started!
+                <Text style={styles.closeButtonText}>
+                  Close
                 </Text>
               </Pressable>
-            )}
+            </Pressable>
           </Pressable>
-        </Pressable>
-      </Modal>
-    </View>
+        </Modal>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
     backgroundColor: '#fff',
+  },
+  safeAreaAccessible: {
+    backgroundColor: '#000',
+  },
+  container: {
+    flex: 1,
     padding: 20,
+    backgroundColor: '#fff',
+  },
+  containerAccessible: {
+    backgroundColor: '#000',
+  },
+  contentContainer: {
+    flex: 1,
     justifyContent: 'space-between',
-    paddingBottom: 100,
+    paddingBottom: Platform.OS === 'ios' ? 100 : 80,
+  },
+  helpButton: {
+    position: 'absolute',
+    top: 20,
+    left: 20,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: '#4A90E2',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.4,
+    shadowRadius: 5,
+    elevation: 8,
+  },
+  helpButtonText: {
+    color: 'white',
+    fontSize: 36,
+    fontWeight: 'bold',
+  },
+  settingsButton: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: '#4A90E2',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.4,
+    shadowRadius: 5,
+    elevation: 8,
   },
   welcomeContainer: {
-    marginTop: '30%',
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  title: {
+  welcomeText: {
     fontSize: 32,
     color: '#333',
     marginBottom: 8,
+  },
+  welcomeTextAccessible: {
+    color: '#00FFFF',
   },
   appName: {
     fontSize: 42,
@@ -251,72 +532,35 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 20,
   },
-  iconContainer: {
-    position: 'relative',
-    width: 120,
-    height: 120,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20,
-  },
-  cartIcon: {
-    marginBottom: 0,
-    transform: [{scale: 1.1}],
-  },
-  markerContainer: {
-    position: 'absolute',
-    top: -15,
-    right: -5,
-    zIndex: 2,
-  },
-  markerBackground: {
-    backgroundColor: 'white',
-    borderRadius: 25,
-    padding: 8,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  markerShadow: {
-    position: 'absolute',
-    top: -25,
-    right: -25,
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    backgroundColor: 'rgba(74, 144, 226, 0.15)',
-    zIndex: 1,
+  appNameAccessible: {
+    color: '#00FFFF',
   },
   subtitle: {
     fontSize: 20,
     color: '#666',
     textAlign: 'center',
-    marginBottom: 40,
     lineHeight: 28,
   },
-  button: {
-    backgroundColor: '#4A90E2',
-    padding: 16,
-    borderRadius: 30,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+  subtitleAccessible: {
+    color: '#00FFFF',
   },
-  buttonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
+  buttonContainer: {
+    width: '100%',
+    marginBottom: 20,
+  },
+  createButton: {
+    height: 80,
+    borderRadius: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 10,
+  },
+  createButtonText: {
+    color: 'white',
+    fontSize: 26,
+    fontWeight: '700',
+    textAlign: 'center',
   },
   modalContainer: {
     flex: 1,
@@ -340,6 +584,9 @@ const styles = StyleSheet.create({
     elevation: 5,
     position: 'relative',
   },
+  modalContentAccessible: {
+    backgroundColor: '#333',
+  },
   tutorialHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -356,12 +603,18 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 40,
   },
+  tutorialTitleAccessible: {
+    color: '#00FFFF',
+  },
   tutorialDescription: {
     fontSize: 16,
     color: '#666',
     textAlign: 'center',
     marginBottom: 25,
     lineHeight: 22,
+  },
+  tutorialDescriptionAccessible: {
+    color: '#aaa',
   },
   tutorialButton: {
     backgroundColor: '#4A90E2',
@@ -385,42 +638,12 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: '#DDD',
   },
+  progressDotAccessible: {
+    backgroundColor: '#555',
+  },
   progressDotActive: {
     backgroundColor: '#4A90E2',
     width: 16,
-  },
-  helpButton: {
-    position: 'absolute',
-    top: 50,
-    right: 20,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#4A90E2',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    zIndex: 1,
-  },
-  helpButtonText: {
-    color: 'white',
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  navigationContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-    marginBottom: 30,
-    position: 'relative',
   },
   navButton: {
     width: 40,
@@ -431,9 +654,93 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     position: 'absolute',
   },
+  navButtonAccessible: {
+    backgroundColor: '#444',
+  },
+  navigationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    marginBottom: 30,
+    position: 'relative',
+  },
   speakerButton: {
     position: 'absolute',
     right: 0,
     padding: 8,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  modalTitleAccessible: {
+    color: '#00FFFF',
+  },
+  settingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 10,
+  },
+  settingLabel: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  settingLabelAccessible: {
+    color: '#00FFFF',
+  },
+  settingHeader: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 10,
+  },
+  settingHeaderAccessible: {
+    color: '#00FFFF',
+  },
+  buttonSizeOptions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 25,
+    justifyContent: 'center',
+  },
+  sizeOption: {
+    width: 80,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: '#DDD',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sizeOptionSelected: {
+    borderWidth: 3,
+  },
+  sizeOptionText: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: 'bold',
+  },
+  sizeOptionTextAccessible: {
+    color: '#00FFFF',
+  },
+  closeButton: {
+    backgroundColor: '#4A90E2',
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+    borderRadius: 25,
+    marginTop: 10,
+    alignSelf: 'center',
+  },
+  closeButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
