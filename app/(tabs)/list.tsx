@@ -211,8 +211,8 @@ export default function ListScreen() {
       });
       setNewItem('');
       
-      // Speak the added item
-      Speech.speak(`Added ${newItem.trim()} to ${category}`, {
+      // Speak the added item with quantity
+      Speech.speak(`Added 1 ${newItem.trim()} to ${category}`, {
         language: 'en',
         pitch: 1,
         rate: 0.9,
@@ -226,7 +226,7 @@ export default function ListScreen() {
     }
   };
 
-  const toggleItem = async (id: string, completed: boolean, text: string) => {
+  const toggleItem = async (id: string, completed: boolean, text: string, quantity: number) => {
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       const itemRef = doc(db, 'groceryItems', id);
@@ -234,8 +234,9 @@ export default function ListScreen() {
         completed: !completed,
       });
 
-      // Speak when marking as completed or uncompleted
-      Speech.speak(completed ? `Added back ${text}` : `Removed ${text}`, {
+      // Speak when marking as completed or uncompleted, including quantity
+      const pluralText = quantity > 1 ? `${quantity} ${text}s` : `1 ${text}`;
+      Speech.speak(completed ? `Added back ${pluralText}` : `Removed ${pluralText}`, {
         language: 'en',
         pitch: 1,
         rate: 0.9,
@@ -273,9 +274,21 @@ export default function ListScreen() {
             style: "destructive",
             onPress: async () => {
               await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              
+              // Count total items and summarize by category before clearing
+              const totalItems = items.length;
+              const categorySummary = Object.entries(itemsByCategory)
+                .map(([category, categoryItems]) => {
+                  const count = categoryItems.length;
+                  return count === 1 ? `1 item from ${category}` : `${count} items from ${category}`;
+                })
+                .join(', ');
+              
               const batch = items.map(item => deleteDoc(doc(db, 'groceryItems', item.id)));
               await Promise.all(batch);
-              Speech.speak("Cleared all items", {
+              
+              const totalMessage = totalItems === 1 ? '1 item' : `${totalItems} items`;
+              Speech.speak(`Cleared ${totalMessage}: ${categorySummary}`, {
                 language: 'en',
                 pitch: 1,
                 rate: 0.9,
@@ -291,7 +304,7 @@ export default function ListScreen() {
     }
   };
 
-  const updateQuantity = async (id: string, quantity: number, increment: boolean) => {
+  const updateQuantity = async (id: string, quantity: number, increment: boolean, itemText: string) => {
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       // Ensure we have a valid quantity to start with
@@ -304,6 +317,35 @@ export default function ListScreen() {
       await updateDoc(itemRef, {
         quantity: newQuantity,
       });
+      
+      // Provide voice feedback for quantity changes
+      if (increment) {
+        // When increasing quantity
+        const message = newQuantity === 1 
+          ? `Now 1 ${itemText}` 
+          : `Now ${newQuantity} ${itemText}${newQuantity > 1 ? 's' : ''}`;
+        
+        Speech.speak(message, {
+          language: 'en',
+          pitch: 1,
+          rate: 0.9,
+          volume: 1,
+        });
+      } else if (currentQuantity > 1) {
+        // Only speak when decreasing and not removing the last item
+        const message = newQuantity === 1 
+          ? `Now 1 ${itemText}` 
+          : `Now ${newQuantity} ${itemText}${newQuantity > 1 ? 's' : ''}`;
+        
+        Speech.speak(message, {
+          language: 'en',
+          pitch: 1,
+          rate: 0.9,
+          volume: 1,
+        });
+      }
+      // No speech when reducing from 1 to 1 (minimum quantity)
+      
     } catch (error) {
       console.error('Error updating quantity:', error);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -327,10 +369,11 @@ export default function ListScreen() {
     );
   };
 
-  const speakItem = async (text: string, category: string) => {
+  const speakItem = async (text: string, quantity: number) => {
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      await Speech.speak(text, {
+      const message = quantity === 1 ? `1 ${text}` : `${quantity} ${text}s`;
+      await Speech.speak(message, {
         language: 'en',
         pitch: 1,
         rate: 0.9,
@@ -356,7 +399,12 @@ export default function ListScreen() {
         return;
       }
 
-      const itemsList = uncheckedItems.map(item => item.text).join(', ');
+      // Format each item with its quantity and proper pluralization
+      const itemsList = uncheckedItems.map(item => {
+        const quantity = item.quantity || 1;
+        return quantity === 1 ? `1 ${item.text}` : `${quantity} ${item.text}s`;
+      }).join(', ');
+      
       Speech.speak(`${category} items: ${itemsList}`, {
         language: 'en',
         pitch: 1,
@@ -384,9 +432,17 @@ export default function ListScreen() {
             style: "destructive",
             onPress: async () => {
               await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              
+              // Create a summary of items being cleared with their quantities and proper pluralization
+              const itemSummary = items.map(item => {
+                const quantity = item.quantity || 1;
+                return quantity === 1 ? `1 ${item.text}` : `${quantity} ${item.text}s`;
+              }).join(', ');
+              
               const batch = items.map(item => deleteDoc(doc(db, 'groceryItems', item.id)));
               await Promise.all(batch);
-              Speech.speak(`Cleared all items from ${category}`, {
+              
+              Speech.speak(`Cleared ${items.length} items from ${category}: ${itemSummary}`, {
                 language: 'en',
                 pitch: 1,
                 rate: 0.9,
@@ -477,7 +533,7 @@ export default function ListScreen() {
                 ]}>
                   <Pressable
                     style={styles.itemTextContainer}
-                    onPress={() => toggleItem(item.id, item.completed, item.text)}
+                    onPress={() => toggleItem(item.id, item.completed, item.text, item.quantity || 1)}
                     onLongPress={() => deleteItem(item.id)}
                     onPressIn={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
                   >
@@ -502,7 +558,7 @@ export default function ListScreen() {
                           borderRadius: buttonSize === 'large' ? 14 : buttonSize === 'medium' ? 12 : 10
                         }
                       ]}
-                      onPress={() => updateQuantity(item.id, item.quantity || 1, false)}
+                      onPress={() => updateQuantity(item.id, item.quantity || 1, false, item.text)}
                     >
                       <Text style={[
                         styles.quantityButtonText,
@@ -530,7 +586,7 @@ export default function ListScreen() {
                           borderRadius: buttonSize === 'large' ? 32 : buttonSize === 'medium' ? 28 : 24
                         }
                       ]}
-                      onPress={() => updateQuantity(item.id, item.quantity || 1, true)}
+                      onPress={() => updateQuantity(item.id, item.quantity || 1, true, item.text)}
                     >
                       <Text style={[
                         styles.quantityButtonText,
