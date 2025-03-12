@@ -143,28 +143,7 @@ const categorizeItem = async (text: string): Promise<Category> => {
     }
   }
   
-  // Check for compound words (e.g., "orange juice" should match "orange juice" in beverages, not "orange" in produce)
-  for (const [category, items] of Object.entries(FOOD_CATEGORIES)) {
-    const compoundMatch = items.find(item => 
-      item.includes(' ') && lowercaseText.includes(item)
-    );
-    if (compoundMatch) {
-      return category as Category;
-    }
-  }
-  
-  // Check for partial matches
-  for (const [category, items] of Object.entries(FOOD_CATEGORIES)) {
-    const partialMatch = items.find(item => 
-      lowercaseText.includes(item) || 
-      item.includes(lowercaseText)
-    );
-    if (partialMatch) {
-      return category as Category;
-    }
-  }
-  
-  // If no match found, ask AI for help
+  // If no exact match found, ask AI for help
   return await askAIForCategory(text);
 };
 
