@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { StyleSheet, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Keyboard, Alert } from 'react-native';
 import { View, Text, Pressable, ScrollView } from 'react-native';
 import { db } from '../../firebaseConfig';
-import { collection, addDoc, query, onSnapshot, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, query, onSnapshot, deleteDoc, doc, updateDoc, getDocs, where } from 'firebase/firestore';
 import config from '../../config';
 import * as Haptics from 'expo-haptics';
 import * as Speech from 'expo-speech';
@@ -153,6 +153,115 @@ export default function ListScreen() {
   const [isAddingItem, setIsAddingItem] = useState(false);
   const { isAccessibleMode, primaryColor, buttonSize } = useTheme();
 
+  // Migrate existing items to add textLowercase field
+  useEffect(() => {
+    const migrateExistingItems = async () => {
+      try {
+        const q = query(collection(db, 'groceryItems'));
+        const querySnapshot = await getDocs(q);
+        
+        const batch: Promise<void>[] = [];
+        querySnapshot.forEach((docSnapshot) => {
+          const data = docSnapshot.data();
+          // Only update if textLowercase doesn't exist
+          if (!data.textLowercase && data.text) {
+            batch.push(
+              updateDoc(doc(db, 'groceryItems', docSnapshot.id), {
+                textLowercase: data.text.toLowerCase()
+              })
+            );
+          }
+        });
+        
+        if (batch.length > 0) {
+          console.log(`Migrating ${batch.length} items to add textLowercase field`);
+          await Promise.all(batch);
+        }
+        
+        // After migration, check for and merge duplicates
+        await mergeDuplicateItems();
+      } catch (error) {
+        console.error('Error migrating items:', error);
+      }
+    };
+    
+    // Function to detect and merge duplicate items
+    const mergeDuplicateItems = async () => {
+      try {
+        console.log("Running initial duplicate check...");
+        const snapshot = await getDocs(collection(db, 'groceryItems'));
+        
+        // Create a map of items grouped by their lowercase text
+        const itemMap: Record<string, {id: string, quantity: number, doc: any}[]> = {};
+        
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          if (!data.text) return;
+          
+          const textLower = data.text.toLowerCase();
+          
+          if (!itemMap[textLower]) {
+            itemMap[textLower] = [];
+          }
+          
+          itemMap[textLower].push({
+            id: doc.id,
+            quantity: data.quantity || 1,
+            doc: data
+          });
+        });
+        
+        // Find and merge any duplicates
+        const mergePromises: Promise<void>[] = [];
+        
+        Object.entries(itemMap).forEach(([textLower, items]) => {
+          if (items.length > 1) {
+            console.log(`Found ${items.length} duplicates for '${textLower}'`);
+            
+            // Keep the first item and add quantities from the rest
+            const primaryItem = items[0];
+            const duplicates = items.slice(1);
+            
+            let totalQuantity = primaryItem.quantity;
+            
+            // Add up quantities from duplicates
+            duplicates.forEach(duplicate => {
+              totalQuantity += duplicate.quantity;
+            });
+            
+            // Update the primary item with total quantity
+            mergePromises.push(
+              updateDoc(doc(db, 'groceryItems', primaryItem.id), {
+                quantity: totalQuantity,
+                textLowercase: textLower // Ensure lowercase field exists
+              })
+            );
+            
+            // Delete all the duplicates
+            duplicates.forEach(duplicate => {
+              mergePromises.push(
+                deleteDoc(doc(db, 'groceryItems', duplicate.id))
+              );
+            });
+            
+            console.log(`Merged items with total quantity: ${totalQuantity}`);
+          }
+        });
+        
+        if (mergePromises.length > 0) {
+          await Promise.all(mergePromises);
+          console.log(`Successfully merged ${mergePromises.length} operations during initial check`);
+        } else {
+          console.log("No duplicates found during initial check");
+        }
+      } catch (error) {
+        console.error('Error merging duplicate items:', error);
+      }
+    };
+    
+    migrateExistingItems();
+  }, []);
+
   useEffect(() => {
     const q = query(collection(db, 'groceryItems'));
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
@@ -172,6 +281,9 @@ export default function ListScreen() {
       setItems(itemsArr);
     });
 
+    // Run duplicate check when the component mounts
+    checkAndMergeDuplicates();
+
     return () => unsubscribe();
   }, []);
 
@@ -181,27 +293,141 @@ export default function ListScreen() {
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
       setIsAddingItem(true);
-      const category = await categorizeItem(newItem.trim());
-      await addDoc(collection(db, 'groceryItems'), {
-        text: newItem.trim(),
-        completed: false,
-        category,
-        quantity: 1, // Default quantity
-      });
-      setNewItem('');
       
-      // Speak the added item with quantity
-      Speech.speak(`Added 1 ${newItem.trim()} to ${category}`, {
-        language: 'en',
-        pitch: 1,
-        rate: 0.9,
-        volume: 1,
-      });
+      // Check for duplicates (case-insensitive)
+      const trimmedNewItem = newItem.trim();
+      const lowerCaseNewItem = trimmedNewItem.toLowerCase();
+      
+      // First, check in our local items state which is faster
+      const existingItem = items.find(item => 
+        item.text.toLowerCase() === lowerCaseNewItem
+      );
+      
+      if (existingItem) {
+        // If item already exists, update its quantity instead of adding a new one
+        const itemRef = doc(db, 'groceryItems', existingItem.id);
+        const newQuantity = (existingItem.quantity || 1) + 1;
+        
+        await updateDoc(itemRef, {
+          quantity: newQuantity,
+          textLowercase: lowerCaseNewItem // Ensure this field exists
+        });
+        
+        setNewItem('');
+        
+        // Speak feedback about incrementing quantity
+        Speech.speak(`Added ${trimmedNewItem}. Now have ${newQuantity} in your list.`, {
+          language: 'en',
+          pitch: 1,
+          rate: 0.9,
+          volume: 1,
+        });
+      } else {
+        // Add as a new item if no duplicate found
+        const category = await categorizeItem(trimmedNewItem);
+        await addDoc(collection(db, 'groceryItems'), {
+          text: trimmedNewItem,
+          textLowercase: lowerCaseNewItem, // Store lowercase version for easier searching
+          completed: false,
+          category,
+          quantity: 1, // Default quantity
+          timestamp: new Date().getTime()
+        });
+        setNewItem('');
+        
+        // Speak the added item with quantity
+        Speech.speak(`Added 1 ${trimmedNewItem} to ${category}`, {
+          language: 'en',
+          pitch: 1,
+          rate: 0.9,
+          volume: 1,
+        });
+      }
+
+      // Force a check for duplicates after adding
+      setTimeout(() => {
+        checkAndMergeDuplicates();
+      }, 1000); // Small delay to ensure Firestore has updated
+      
     } catch (error) {
       console.error('Error adding item:', error);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setIsAddingItem(false);
+    }
+  };
+
+  // More aggressive duplicate checking that runs after every update
+  const checkAndMergeDuplicates = async () => {
+    try {
+      console.log("Running duplicate check...");
+      const snapshot = await getDocs(collection(db, 'groceryItems'));
+      
+      // Create a map of items grouped by their lowercase text
+      const itemMap: Record<string, {id: string, quantity: number, doc: any}[]> = {};
+      
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        if (!data.text) return;
+        
+        const textLower = data.text.toLowerCase();
+        
+        if (!itemMap[textLower]) {
+          itemMap[textLower] = [];
+        }
+        
+        itemMap[textLower].push({
+          id: doc.id,
+          quantity: data.quantity || 1,
+          doc: data
+        });
+      });
+      
+      // Find and merge any duplicates
+      const mergePromises: Promise<void>[] = [];
+      
+      Object.entries(itemMap).forEach(([textLower, items]) => {
+        if (items.length > 1) {
+          console.log(`Found ${items.length} duplicates for '${textLower}'`);
+          
+          // Keep the first item and add quantities from the rest
+          const primaryItem = items[0];
+          const duplicates = items.slice(1);
+          
+          let totalQuantity = primaryItem.quantity;
+          
+          // Add up quantities from duplicates
+          duplicates.forEach(duplicate => {
+            totalQuantity += duplicate.quantity;
+          });
+          
+          // Update the primary item with total quantity
+          mergePromises.push(
+            updateDoc(doc(db, 'groceryItems', primaryItem.id), {
+              quantity: totalQuantity,
+              textLowercase: textLower // Ensure lowercase field exists
+            })
+          );
+          
+          // Delete all the duplicates
+          duplicates.forEach(duplicate => {
+            mergePromises.push(
+              deleteDoc(doc(db, 'groceryItems', duplicate.id))
+            );
+          });
+          
+          console.log(`Merged items with total quantity: ${totalQuantity}`);
+        }
+      });
+      
+      if (mergePromises.length > 0) {
+        await Promise.all(mergePromises);
+        console.log(`Successfully merged ${mergePromises.length} operations`);
+      } else {
+        console.log("No duplicates found to merge");
+      }
+    } catch (error) {
+      console.error("Error merging duplicates:", error);
     }
   };
 
@@ -342,9 +568,35 @@ export default function ListScreen() {
 
   const showHelpAlert = () => {
     Alert.alert(
-      "Text-to-Speech Help",
-      "To hear items read aloud, make sure your device is not in silent mode and tap the speaker icon next to any category.",
+      "Shopping List Help",
+      "• Tap items to mark as complete\n• Long press to delete items\n• Use + and - to adjust quantities\n• Use the trash icon to clear all items\n• Use the magic wand to remove duplicates",
       [{ text: "OK", style: "default" }]
+    );
+  };
+
+  const showMagicWandHelp = () => {
+    Alert.alert(
+      "Clean Up Shopping List",
+      "This will scan your list for any duplicate items and combine them into a single item with the total quantity. Would you like to clean up your list now?",
+      [
+        { 
+          text: "Cancel", 
+          style: "cancel" 
+        },
+        { 
+          text: "Clean Up", 
+          onPress: async () => {
+            try {
+              await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              await checkAndMergeDuplicates();
+              Alert.alert("Success", "Your shopping list has been cleaned up.");
+            } catch (error) {
+              console.error('Error cleaning up list:', error);
+              Alert.alert('Error', 'Failed to clean up shopping list');
+            }
+          }
+        }
+      ]
     );
   };
 
@@ -447,33 +699,26 @@ export default function ListScreen() {
         <Text style={[styles.title, isAccessibleMode && styles.titleAccessible]}>Shopping List</Text>
         <View style={styles.headerButtons}>
           <Pressable 
+            style={[styles.cleanUpButton, isAccessibleMode && styles.cleanUpButtonAccessible]}
+            onPress={showMagicWandHelp}
+          >
+            <FontAwesome 
+              name="magic" 
+              size={32} 
+              color={isAccessibleMode ? "#00FFFF" : primaryColor} 
+            />
+          </Pressable>
+          <Pressable 
             style={[
               styles.clearButton,
-              { 
-                padding: buttonSize === 'large' ? 20 : buttonSize === 'medium' ? 16 : 12 
-              }
+              isAccessibleMode && styles.clearButtonAccessible
             ]}
             onPress={clearAllItems}
           >
             <FontAwesome 
               name="trash" 
-              size={buttonSize === 'large' ? 40 : buttonSize === 'medium' ? 32 : 26} 
+              size={32} 
               color={isAccessibleMode ? "#FF00FF" : "#FF3B30"} 
-            />
-          </Pressable>
-          <Pressable 
-            style={[
-              styles.helpButton,
-              { 
-                padding: buttonSize === 'large' ? 20 : buttonSize === 'medium' ? 16 : 12 
-              }
-            ]}
-            onPress={showHelpAlert}
-          >
-            <FontAwesome 
-              name="question-circle" 
-              size={buttonSize === 'large' ? 40 : buttonSize === 'medium' ? 32 : 26} 
-              color={isAccessibleMode ? "#00FFFF" : primaryColor} 
             />
           </Pressable>
         </View>
@@ -653,11 +898,47 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 18,
   },
-  clearButton: {
-    padding: 16,
+  cleanUpButton: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
   },
-  helpButton: {
-    padding: 16,
+  cleanUpButtonAccessible: {
+    backgroundColor: '#222222',
+    borderWidth: 2,
+    borderColor: '#00FFFF',
+    shadowColor: '#00FFFF',
+    shadowOpacity: 0.8,
+    shadowRadius: 6,
+  },
+  clearButton: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255, 59, 48, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  clearButtonAccessible: {
+    backgroundColor: 'rgba(255, 0, 255, 0.2)',
+    borderWidth: 2,
+    borderColor: '#FF00FF',
+    shadowColor: '#FF00FF',
+    shadowOpacity: 0.8,
+    shadowRadius: 6,
   },
   listContainer: {
     flex: 1,

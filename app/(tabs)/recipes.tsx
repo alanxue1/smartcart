@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { db } from '../../firebaseConfig';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, updateDoc, query, where, deleteDoc } from 'firebase/firestore';
 import * as Haptics from 'expo-haptics';
 import * as Speech from 'expo-speech';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
@@ -50,7 +50,7 @@ const FOOD_CATEGORIES: Record<string, readonly string[]> = {
   'Pantry': [
     'rice', 'pasta', 'bread', 'cereal', 'flour', 'sugar', 'oil', 'vinegar', 'sauce', 'spice',
     'seasoning', 'canned', 'dried', 'baking', 'condiment', 'syrup', 'honey', 'peanut butter',
-    'jam', 'jelly', 'bean', 'lentil', 'grain'
+    'jam', 'jelly', 'bean', 'lentil', 'grain', 'pepper flakes', 'red pepper flakes', 'salt', 'black pepper'
   ],
   'Snacks': [
     'chips', 'cookies', 'crackers', 'nuts', 'candy', 'chocolate', 'popcorn', 'pretzel', 'granola bar',
@@ -174,6 +174,7 @@ const normalizeIngredientForShopping = (ingredient: Ingredient): { text: string,
     { term: 'pie crust', unit: 'package', defaultQuantity: 1 },
     { term: 'pasta', unit: 'box', defaultQuantity: 1 },
     { term: 'rice', unit: 'bag', defaultQuantity: 1 },
+    { term: 'red pepper flakes', unit: 'container', defaultQuantity: 1 },
   ];
   
   // Check if the ingredient is a common grocery item
@@ -248,6 +249,80 @@ const ingredientMatches = (ingredient: string, pantryItem: string): boolean => {
   
   // Check with singular forms
   return singularIng.includes(singularPantry) || singularPantry.includes(singularIng);
+};
+
+// Add the duplicate checking function
+const checkAndMergeDuplicates = async () => {
+  try {
+    console.log("Running duplicate check...");
+    const snapshot = await getDocs(collection(db, 'groceryItems'));
+    
+    // Create a map of items grouped by their lowercase text
+    const itemMap: Record<string, {id: string, quantity: number, doc: any}[]> = {};
+    
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      if (!data.text) return;
+      
+      const textLower = data.text.toLowerCase();
+      
+      if (!itemMap[textLower]) {
+        itemMap[textLower] = [];
+      }
+      
+      itemMap[textLower].push({
+        id: doc.id,
+        quantity: data.quantity || 1,
+        doc: data
+      });
+    });
+    
+    // Find and merge any duplicates
+    const mergePromises: Promise<void>[] = [];
+    
+    Object.entries(itemMap).forEach(([textLower, items]) => {
+      if (items.length > 1) {
+        console.log(`Found ${items.length} duplicates for '${textLower}'`);
+        
+        // Keep the first item and add quantities from the rest
+        const primaryItem = items[0];
+        const duplicates = items.slice(1);
+        
+        let totalQuantity = primaryItem.quantity;
+        
+        // Add up quantities from duplicates
+        duplicates.forEach(duplicate => {
+          totalQuantity += duplicate.quantity;
+        });
+        
+        // Update the primary item with total quantity
+        mergePromises.push(
+          updateDoc(doc(db, 'groceryItems', primaryItem.id), {
+            quantity: totalQuantity,
+            textLowercase: textLower // Ensure lowercase field exists
+          })
+        );
+        
+        // Delete all the duplicates
+        duplicates.forEach(duplicate => {
+          mergePromises.push(
+            deleteDoc(doc(db, 'groceryItems', duplicate.id))
+          );
+        });
+        
+        console.log(`Merged items with total quantity: ${totalQuantity}`);
+      }
+    });
+    
+    if (mergePromises.length > 0) {
+      await Promise.all(mergePromises);
+      console.log(`Successfully merged ${mergePromises.length} operations`);
+    } else {
+      console.log("No duplicates found to merge");
+    }
+  } catch (error) {
+    console.error("Error merging duplicates:", error);
+  }
 };
 
 export default function RecipeScreen() {
@@ -366,6 +441,10 @@ Do not include any text, markdown formatting, or code blocks outside the JSON.`
         
         setRecipe(normalizedRecipe);
         setShowInstructions(false);
+        
+        if (isAccessibleMode) {
+          Speech.speak(`Found recipe for ${normalizedRecipe.name}. ${normalizedRecipe.ingredients.length} ingredients needed.`);
+        }
       } catch (parseError: unknown) {
         console.error('JSON parsing error:', parseError, 'Raw text:', recipeText);
         const errorMessage = parseError instanceof Error ? parseError.message : 'Unknown parsing error';
@@ -385,14 +464,34 @@ Do not include any text, markdown formatting, or code blocks outside the JSON.`
   const addToPantry = useCallback(() => {
     if (!pantryItem.trim()) return;
     
-    setPantryItems(prev => [...prev, pantryItem.trim()]);
+    const trimmedPantryItem = pantryItem.trim();
+    
+    // Check for duplicates (case-insensitive)
+    const isDuplicate = pantryItems.some(
+      item => item.toLowerCase() === trimmedPantryItem.toLowerCase()
+    );
+    
+    if (isDuplicate) {
+      // Alert the user that the item already exists
+      Alert.alert('Duplicate Item', `"${trimmedPantryItem}" is already in your pantry.`);
+      
+      if (isAccessibleMode) {
+        Speech.speak(`${trimmedPantryItem} is already in your pantry`);
+      }
+      
+      setPantryItem('');
+      return;
+    }
+    
+    // Add the item if it's not a duplicate
+    setPantryItems(prev => [...prev, trimmedPantryItem]);
     setPantryItem('');
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
     if (isAccessibleMode) {
-      Speech.speak(`Added ${pantryItem} to pantry`);
+      Speech.speak(`Added ${trimmedPantryItem} to pantry`);
     }
-  }, [pantryItem, isAccessibleMode]);
+  }, [pantryItem, pantryItems, isAccessibleMode]);
 
   const removePantryItem = useCallback((item: string) => {
     setPantryItems(prev => prev.filter(i => i !== item));
@@ -424,36 +523,86 @@ Do not include any text, markdown formatting, or code blocks outside the JSON.`
       
       setLoading(true);
       
+      // Get all current grocery items first
+      const grocerySnapshot = await getDocs(collection(db, 'groceryItems'));
+      const existingItems: Record<string, { id: string; quantity: number }> = {};
+      
+      // Create a map of lowercase item text to item details
+      grocerySnapshot.forEach(doc => {
+        const data = doc.data();
+        if (data.text) {
+          const textLower = data.text.toLowerCase();
+          existingItems[textLower] = { 
+            id: doc.id, 
+            quantity: data.quantity || 1 
+          };
+        }
+      });
+      
+      let addedCount = 0;
+      let updatedCount = 0;
+      
       // Process each ingredient
       for (const ingredient of neededIngredients) {
         // Normalize the ingredient for shopping list
         const { text, quantity } = normalizeIngredientForShopping(ingredient);
+        const textLower = text.toLowerCase();
         
-        // First try rule-based categorization as it's faster
-        let category = categorizeByRules(ingredient.name);
-        
-        // If rule-based categorization returns 'Other', try with AI
-        if (category === 'Other') {
-          category = await askAIForCategory(ingredient.name);
+        // Check if the item already exists in our map
+        if (existingItems[textLower]) {
+          // Update existing item
+          const itemToUpdate = existingItems[textLower];
+          await updateDoc(doc(db, 'groceryItems', itemToUpdate.id), {
+            quantity: itemToUpdate.quantity + quantity,
+            textLowercase: textLower // Ensure this field exists
+          });
+          updatedCount++;
+        } else {
+          // Add as a new item
+          let category = categorizeByRules(ingredient.name);
+          
+          if (category === 'Other') {
+            category = await askAIForCategory(ingredient.name);
+          }
+          
+          console.log(`Adding to shopping list: ${text} (${quantity}) → ${category}`);
+          
+          // Add to Firestore with proper category
+          const docRef = await addDoc(collection(db, 'groceryItems'), {
+            text: text,
+            textLowercase: textLower,
+            completed: false,
+            category: category,
+            quantity: quantity,
+            timestamp: new Date().getTime()
+          });
+          
+          // Add to our map in case another ingredient matches this one
+          existingItems[textLower] = { id: docRef.id, quantity };
+          addedCount++;
         }
-        
-        console.log(`Adding to shopping list: ${text} (${quantity}) → ${category}`);
-        
-        // Add to Firestore with proper category
-        await addDoc(collection(db, 'groceryItems'), {
-          text: text,
-          completed: false,
-          category: category,
-          quantity: quantity,
-          timestamp: new Date().getTime()
-        });
       }
       
+      // Force a check for duplicates after adding all ingredients
+      setTimeout(() => {
+        checkAndMergeDuplicates();
+      }, 1000);
+      
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert('Success', `Added ${neededIngredients.length} items to your shopping list`);
+      
+      let message = '';
+      if (addedCount > 0 && updatedCount > 0) {
+        message = `Added ${addedCount} new items and updated quantities for ${updatedCount} existing items`;
+      } else if (addedCount > 0) {
+        message = `Added ${addedCount} items to your shopping list`;
+      } else {
+        message = `Updated quantities for ${updatedCount} items in your shopping list`;
+      }
+      
+      Alert.alert('Success', message);
       
       if (isAccessibleMode) {
-        Speech.speak(`Added ${neededIngredients.length} items to your shopping list`);
+        Speech.speak(message);
       }
     } catch (error) {
       console.error('Error adding to shopping list:', error);
