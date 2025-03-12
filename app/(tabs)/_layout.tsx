@@ -1,6 +1,6 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Tabs } from 'expo-router';
-import { useColorScheme, StyleSheet } from 'react-native';
+import { useColorScheme, StyleSheet, Platform } from 'react-native';
 import { useTheme } from './index';
 import * as Haptics from 'expo-haptics';
 
@@ -18,6 +18,12 @@ export default function TabLayout() {
   const colorScheme = useColorScheme();
   const { isAccessibleMode, primaryColor } = useTheme();
 
+  // Calculate bottom padding based on platform and device
+  // iPhones with home indicator need more padding
+  const isIPhoneWithHomeIndicator = Platform.OS === 'ios' && !Platform.isPad && (Platform.constants?.interfaceIdiom === 'handset');
+  const bottomPadding = isIPhoneWithHomeIndicator ? 34 : Platform.OS === 'ios' ? 20 : 8;
+  const tabBarHeight = isIPhoneWithHomeIndicator ? 90 : Platform.OS === 'ios' ? 80 : 60;
+
   return (
     <Tabs
       screenOptions={{
@@ -27,9 +33,14 @@ export default function TabLayout() {
           backgroundColor: isAccessibleMode ? '#111' : '#fff',
           borderTopColor: isAccessibleMode ? primaryColor : '#e0e0e0',
           borderTopWidth: isAccessibleMode ? 1 : 0.5,
-          height: 60,
-          paddingBottom: 8,
+          height: tabBarHeight,
+          paddingBottom: bottomPadding,
           paddingTop: 8,
+          // Add safe area bottom inset support
+          ...(Platform.OS === 'ios' && {
+            safeAreaInsets: { bottom: 0 },
+            paddingBottom: bottomPadding
+          })
         },
         headerStyle: {
           backgroundColor: isAccessibleMode ? '#111' : '#fff',
@@ -58,11 +69,11 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="map"
+        name="recipes"
         options={{
-          title: 'Store Map',
-          tabBarIcon: ({ color }) => <FontAwesome size={30} name="map" color={color} />,
-          tabBarAccessibilityLabel: "Store Map Screen",
+          title: 'Recipes',
+          tabBarIcon: ({ color }) => <FontAwesome size={30} name="cutlery" color={color} />,
+          tabBarAccessibilityLabel: "Recipes Screen",
         }}
         listeners={{
           tabPress: () => Haptics.selectionAsync(),

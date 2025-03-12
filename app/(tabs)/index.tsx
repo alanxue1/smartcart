@@ -93,24 +93,24 @@ const TUTORIAL_STEPS = [
     description: "Let's learn how to use the app in a few simple steps."
   },
   {
-    title: "Adding Items ➕",
-    description: "Speak or type your grocery item in the input box and tap the + button or press enter."
+    title: "Adding Items to Shopping List ➕",
+    description: "Add items to your shopping list manually or browse recipes to automatically add ingredients you need."
   },
   {
-    title: "Managing Items ✅",
-    description: "Tap any item to mark it as complete. Long press to delete it from your list."
+    title: "Managing Your List ✅",
+    description: "Tap items to mark them as complete. Long press to delete them from your list."
   },
   {
     title: "Smart Categories 🤖",
-    description: "By leverging AI, your items are automatically sorted into categories like Produce, Dairy, Meat, etc. This helps you shop more efficiently!"
+    description: "AI automatically sorts your items into categories like Produce, Dairy, and Meat to help you shop more efficiently."
   },
   {
-    title: "Real-time Sync 🔄",
-    description: "Your list updates in real-time across all your devices. Changes are saved automatically!"
+    title: "Recipe Finder 🍳",
+    description: "Search for recipes and see what ingredients you need. Items you already have in your pantry are automatically highlighted."
   },
   {
-    title: "Efficient Navigation 🛍️",
-    description: "Our AI will navigate you to the item in the store. Just follow the directions and you'll be done in no time!"
+    title: "Pantry Management 🧰",
+    description: "Add ingredients you already have to your pantry to avoid buying duplicates when shopping for recipes."
   }
 ];
 
@@ -227,7 +227,7 @@ export default function HomeScreen() {
             <Text style={[styles.welcomeText, isAccessibleMode && styles.welcomeTextAccessible]}>Welcome to</Text>
             <Text style={[styles.appName, isAccessibleMode && styles.appNameAccessible]}>NaviCart</Text>
             <Text style={[styles.subtitle, isAccessibleMode && styles.subtitleAccessible]}>
-              Simplify your shopping experience{'\n'}with smart navigation
+              Recipes, pantry tracking, and{'\n'}smart shopping lists
             </Text>
           </View>
           
@@ -256,7 +256,7 @@ export default function HomeScreen() {
                   fontWeight: buttonSize === 'large' ? '800' : buttonSize === 'medium' ? '700' : '600',
                 }
               ]}>
-                Create Grocery List
+                Create Shopping List
               </Text>
             </Pressable>
           </View>
@@ -599,24 +599,24 @@ const styles = StyleSheet.create({
     color: '#00FFFF',
   },
   tutorialDescription: {
-    fontSize: 16,
+    fontSize: 22,
     color: '#666',
     textAlign: 'center',
     marginBottom: 25,
-    lineHeight: 22,
+    lineHeight: 30,
   },
   tutorialDescriptionAccessible: {
-    color: '#aaa',
+    color: '#00FFFF',
   },
   tutorialButton: {
     backgroundColor: '#4A90E2',
-    paddingVertical: 12,
-    paddingHorizontal: 30,
+    paddingVertical: 15,
+    paddingHorizontal: 35,
     borderRadius: 25,
   },
   tutorialButtonText: {
     color: 'white',
-    fontSize: 16,
+    fontSize: 22,
     fontWeight: '600',
   },
   tutorialProgress: {

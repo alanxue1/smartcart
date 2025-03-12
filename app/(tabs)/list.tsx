@@ -718,6 +718,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingLeft: 20,
     paddingRight: 14,
+    flexWrap: 'nowrap',
   },
   itemWrapperAccessible: {
     backgroundColor: '#222222',
@@ -727,6 +728,10 @@ const styles = StyleSheet.create({
   itemTextContainer: {
     flex: 1,
     paddingVertical: 8,
+    paddingRight: 10,
+    maxWidth: '60%',
+    minWidth: 0,
+    overflow: 'hidden',
   },
   itemCompleted: {
     backgroundColor: '#c8c8c8',
@@ -740,6 +745,8 @@ const styles = StyleSheet.create({
   itemText: {
     fontSize: 20,
     color: '#333',
+    flexWrap: 'wrap',
+    flexShrink: 1,
   },
   itemTextAccessible: {
     color: '#00FFFF',

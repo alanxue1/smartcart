@@ -16,7 +16,8 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.navicart.app"
+      "bundleIdentifier": "com.navicart.app",
+      "userInterfaceStyle": "automatic"
     },
     "android": {
       "adaptiveIcon": {

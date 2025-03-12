@@ -1,16 +1,18 @@
 # NaviCart
 
-A smart navigation app that uses AI to automatically categorize items and help you navigate stores efficiently.
+A smart shopping & recipe app that helps manage your pantry and shopping list with AI-powered categorization.
 
 ## Features
 
-- 🤖 AI-powered item categorization using Google's Gemini Pro
-- 📱 Real-time grocery list syncing with Firebase
-- 📍 Accurate indoor positioning and navigation using Mappedin's API
+- 🔍 Search for recipes and see what ingredients you need
+- 📋 Maintain a pantry inventory of ingredients you already have
+- 🤖 AI-powered ingredient categorization using Google's Gemini Pro
+- 📱 Real-time shopping list syncing with Firebase
 - 🗂️ Automatic categorization into:
   - Produce
   - Dairy
   - Meat
+  - Seafood
   - Pantry
   - Snacks
   - Beverages
@@ -18,6 +20,8 @@ A smart navigation app that uses AI to automatically categorize items and help y
   - Other
 - ✅ Mark items as complete
 - 🗑️ Long press to delete items
+- 🔊 Text-to-speech for accessibility
+- 🎨 High contrast mode for better visibility
 - 📱 Cross-platform (iOS & Android) support
 
 ## Tech Stack
@@ -27,7 +31,7 @@ A smart navigation app that uses AI to automatically categorize items and help y
 - Firebase Firestore
 - Google Gemini Pro API
 - React Native Navigation (Expo Router)
-- Mappedin's API
+- Expo Speech API for accessibility
 
 ## Setup
 
@@ -82,7 +86,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## 🙏 Acknowledgments
 
-- Big thanks to Kimberly Luu at Mappedin for the API subscription
+- Thanks to Google Gemini Pro API for the AI categorization capabilities
 - Other inspirations
 
 ## 📞 Contact
