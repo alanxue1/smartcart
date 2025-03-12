@@ -363,7 +363,7 @@ export default function HomeScreen() {
               
               <View style={styles.settingRow}>
                 <Text style={[styles.settingLabel, isAccessibleMode && styles.settingLabelAccessible]}>
-                  Accessible Mode
+                  High Contrast Mode
                 </Text>
                 <Switch
                   value={isAccessibleMode}
@@ -371,6 +371,7 @@ export default function HomeScreen() {
                   trackColor={{ false: '#767577', true: '#81b0ff' }}
                   thumbColor={isAccessibleMode ? '#00FFFF' : '#f4f3f4'}
                   ios_backgroundColor="#3e3e3e"
+                  style={{ transform: [{ scaleX: 1.3 }, { scaleY: 1.3 }] }}
                 />
               </View>
               
@@ -436,15 +437,6 @@ export default function HomeScreen() {
                   </Text>
                 </Pressable>
               </View>
-              
-              <Pressable 
-                style={[styles.closeButton, { backgroundColor: primaryColor }]}
-                onPress={() => setShowSettings(false)}
-              >
-                <Text style={styles.closeButtonText}>
-                  Close
-                </Text>
-              </Pressable>
             </Pressable>
           </Pressable>
         </Modal>
@@ -671,11 +663,11 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   modalTitle: {
-    fontSize: 24,
+    fontSize: 32,
     fontWeight: 'bold',
     color: '#333',
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 40,
   },
   modalTitleAccessible: {
     color: '#00FFFF',
@@ -685,10 +677,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     width: '100%',
-    marginBottom: 10,
+    marginBottom: 40,
   },
   settingLabel: {
-    fontSize: 18,
+    fontSize: 24,
     fontWeight: 'bold',
     color: '#333',
   },
@@ -696,24 +688,25 @@ const styles = StyleSheet.create({
     color: '#00FFFF',
   },
   settingHeader: {
-    fontSize: 18,
+    fontSize: 24,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 10,
+    marginBottom: 25,
   },
   settingHeaderAccessible: {
     color: '#00FFFF',
   },
   buttonSizeOptions: {
     flexDirection: 'row',
-    gap: 10,
-    marginBottom: 25,
+    gap: 15,
+    marginBottom: 40,
     justifyContent: 'center',
+    width: '100%',
   },
   sizeOption: {
-    width: 80,
-    height: 40,
-    borderRadius: 20,
+    width: 110,
+    height: 60,
+    borderRadius: 30,
     borderWidth: 2,
     borderColor: '#DDD',
     justifyContent: 'center',
@@ -723,24 +716,11 @@ const styles = StyleSheet.create({
     borderWidth: 3,
   },
   sizeOptionText: {
-    fontSize: 16,
+    fontSize: 20,
     color: '#333',
     fontWeight: 'bold',
   },
   sizeOptionTextAccessible: {
     color: '#00FFFF',
-  },
-  closeButton: {
-    backgroundColor: '#4A90E2',
-    paddingVertical: 12,
-    paddingHorizontal: 30,
-    borderRadius: 25,
-    marginTop: 10,
-    alignSelf: 'center',
-  },
-  closeButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
   },
 });
