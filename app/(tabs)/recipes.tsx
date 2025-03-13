@@ -69,55 +69,89 @@ const FOOD_CATEGORIES: Record<string, readonly string[]> = {
 
 type Category = keyof typeof FOOD_CATEGORIES;
 
+// Maximum number of retries
+const MAX_RETRIES = 3;
+
 const askAIForCategory = async (item: string): Promise<Category> => {
   console.log('🔍 Attempting to categorize:', item);
-  try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent?key=${config.geminiKey}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: `Categorize this grocery item: "${item}" into exactly one of these categories: Produce, Dairy, Meat, Seafood, Pantry, Snacks, Beverages, Frozen, Other. Reply with just the category name and nothing else.`
-          }]
-        }],
-        generationConfig: {
-          temperature: 0,
-          maxOutputTokens: 5,
-          topP: 1,
-          topK: 1
+  
+  let retries = 0;
+  
+  while (retries < MAX_RETRIES) {
+    try {
+      // Add delay based on retry count (exponential backoff)
+      if (retries > 0) {
+        const delayMs = Math.pow(2, retries) * 1000; // 2s, 4s, 8s...
+        console.log(`Retry attempt ${retries}. Waiting ${delayMs/1000}s before retry...`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+      
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-lite:generateContent?key=${config.geminiKey}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: `Categorize this grocery item: "${item}" into exactly one of these categories: Produce, Dairy, Meat, Seafood, Pantry, Snacks, Beverages, Frozen, Other. Reply with just the category name and nothing else.`
+            }]
+          }],
+          generationConfig: {
+            temperature: 0,
+            maxOutputTokens: 5,
+            topP: 1,
+            topK: 1
+          }
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('❌ Gemini API error:', errorData);
+        
+        // Check if it's a quota error
+        if (response.status === 429) {
+          console.log('Quota exceeded error. Will retry with backoff...');
+          retries++;
+          continue; // Retry with backoff
         }
-      })
-    });
+        
+        throw new Error(`API error: ${response.status}`);
+      }
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error('❌ Gemini API error:', errorData);
-      throw new Error(`API error: ${response.status}`);
+      const data = await response.json();
+      
+      // Success - exit the retry loop
+      if (!data?.candidates?.[0]?.content?.parts?.[0]?.text) {
+        console.error('❌ Invalid response format:', data);
+        throw new Error('Invalid API response format');
+      }
+
+      const suggestedCategory = data.candidates[0].content.parts[0].text.trim();
+      console.log('🤖 AI suggested category:', suggestedCategory);
+
+      if (Object.keys(FOOD_CATEGORIES).includes(suggestedCategory)) {
+        return suggestedCategory as Category;
+      } else {
+        console.warn('⚠️ AI returned invalid category:', suggestedCategory);
+        return 'Other';
+      }
+      
+    } catch (error) {
+      console.error(`❌ Error categorizing item (attempt ${retries+1}/${MAX_RETRIES}):`, error);
+      retries++;
+      
+      // If we've exhausted retries, fall back to rule-based categorization
+      if (retries >= MAX_RETRIES) {
+        console.log('Max retries reached. Falling back to rule-based categorization.');
+        return categorizeByRules(item);
+      }
     }
-
-    const data = await response.json();
-    
-    if (!data?.candidates?.[0]?.content?.parts?.[0]?.text) {
-      console.error('❌ Invalid response format:', data);
-      throw new Error('Invalid API response format');
-    }
-
-    const suggestedCategory = data.candidates[0].content.parts[0].text.trim();
-    console.log('🤖 AI suggested category:', suggestedCategory);
-
-    if (Object.keys(FOOD_CATEGORIES).includes(suggestedCategory)) {
-      return suggestedCategory as Category;
-    } else {
-      console.warn('⚠️ AI returned invalid category:', suggestedCategory);
-      return 'Other';
-    }
-  } catch (error) {
-    console.error('❌ Error categorizing item:', error);
-    return 'Other';
   }
+  
+  // This should not be reached but TypeScript requires a return
+  return 'Other';
 };
 
 const categorizeByRules = (item: string): Category => {
@@ -349,17 +383,27 @@ export default function RecipeScreen() {
       Speech.speak(`Searching for ${query} recipe`);
     }
 
-    try {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent?key=${config.geminiKey}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: `Create a recipe for "${query}". 
-              
+    let retries = 0;
+    
+    while (retries < MAX_RETRIES) {
+      try {
+        // Add delay based on retry count (exponential backoff)
+        if (retries > 0) {
+          const delayMs = Math.pow(2, retries) * 1000; // 2s, 4s, 8s...
+          console.log(`Retry attempt ${retries}. Waiting ${delayMs/1000}s before retry...`);
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+        }
+        
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-lite:generateContent?key=${config.geminiKey}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{
+                text: `Create a recipe for "${query}". 
+                
 Return ONLY a valid JSON object with the EXACT following structure without any markdown formatting, explanation or additional text:
 {
   "name": "Recipe Name",
@@ -373,92 +417,113 @@ Return ONLY a valid JSON object with the EXACT following structure without any m
 Keep the recipe simple, with common ingredients, and make it suitable for 1-2 people. 
 Make sure the JSON is valid and can be parsed directly with JSON.parse() in JavaScript.
 Do not include any text, markdown formatting, or code blocks outside the JSON.`
-            }]
-          }],
-          generationConfig: {
-            temperature: 0.2,
-            maxOutputTokens: 2048,
-            topP: 0.8,
-            topK: 40
-          }
-        })
-      });
+              }]
+            }],
+            generationConfig: {
+              temperature: 0.2,
+              maxOutputTokens: 2048,
+              topP: 0.8,
+              topK: 40
+            }
+          })
+        });
 
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      
-      if (!data?.candidates?.[0]?.content?.parts?.[0]?.text) {
-        console.error('Invalid API response structure:', data);
-        throw new Error('Received an invalid response format from the recipe service');
-      }
-      
-      const recipeText = data.candidates[0].content.parts[0].text;
-      
-      console.log('Raw Gemini response:', recipeText);
-      
-      // More robust JSON extraction
-      try {
-        let jsonStr = recipeText;
-        
-        // If the response has markdown code blocks, extract just the JSON
-        const codeBlockMatch = recipeText.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
-        if (codeBlockMatch) {
-          jsonStr = codeBlockMatch[1];
-        } else {
-          // Otherwise try to find JSON object anywhere in the text
-          const jsonMatch = recipeText.match(/(\{[\s\S]*\})/);
-          if (jsonMatch) {
-            jsonStr = jsonMatch[1];
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error('❌ Gemini API error:', errorData);
+          
+          // Check if it's a quota error
+          if (response.status === 429) {
+            console.log('Quota exceeded error. Will retry with backoff...');
+            retries++;
+            continue; // Retry with backoff
           }
+          
+          throw new Error(`API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        if (!data?.candidates?.[0]?.content?.parts?.[0]?.text) {
+          console.error('Invalid API response structure:', data);
+          throw new Error('Received an invalid response format from the recipe service');
         }
         
-        // Clean the string - remove any non-JSON content
-        jsonStr = jsonStr.replace(/^[^{]*/, '').replace(/[^}]*$/, '');
+        const recipeText = data.candidates[0].content.parts[0].text;
         
-        console.log('Extracted JSON string:', jsonStr);
+        console.log('Raw Gemini response:', recipeText);
         
-        // Parse the JSON
-        const recipeData = JSON.parse(jsonStr);
-        
-        // Validate the required fields
-        if (!recipeData.name || !Array.isArray(recipeData.ingredients) || !Array.isArray(recipeData.instructions)) {
-          throw new Error('Invalid recipe format: missing required fields');
+        // More robust JSON extraction
+        try {
+          let jsonStr = recipeText;
+          
+          // If the response has markdown code blocks, extract just the JSON
+          const codeBlockMatch = recipeText.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+          if (codeBlockMatch) {
+            jsonStr = codeBlockMatch[1];
+          } else {
+            // Otherwise try to find JSON object anywhere in the text
+            const jsonMatch = recipeText.match(/(\{[\s\S]*\})/);
+            if (jsonMatch) {
+              jsonStr = jsonMatch[1];
+            }
+          }
+          
+          // Clean the string - remove any non-JSON content
+          jsonStr = jsonStr.replace(/^[^{]*/, '').replace(/[^}]*$/, '');
+          
+          console.log('Extracted JSON string:', jsonStr);
+          
+          // Parse the JSON
+          const recipeData = JSON.parse(jsonStr);
+          
+          // Validate the required fields
+          if (!recipeData.name || !Array.isArray(recipeData.ingredients) || !Array.isArray(recipeData.instructions)) {
+            throw new Error('Invalid recipe format: missing required fields');
+          }
+          
+          // Normalize the data structure
+          const normalizedRecipe = {
+            name: recipeData.name,
+            ingredients: recipeData.ingredients.map((ing: any) => ({
+              name: ing.name || "",
+              quantity: ing.quantity || "1",
+              unit: ing.unit || ""
+            })),
+            instructions: recipeData.instructions
+          };
+          
+          setRecipe(normalizedRecipe);
+          setShowInstructions(false);
+          
+          if (isAccessibleMode) {
+            Speech.speak(`Found recipe for ${normalizedRecipe.name}. ${normalizedRecipe.ingredients.length} ingredients needed.`);
+          }
+          
+          // Success - exit the loop
+          break;
+          
+        } catch (parseError: unknown) {
+          console.error('JSON parsing error:', parseError, 'Raw text:', recipeText);
+          const errorMessage = parseError instanceof Error ? parseError.message : 'Unknown parsing error';
+          throw new Error(`Failed to parse recipe data: ${errorMessage}`);
         }
+      } catch (error) {
+        console.error(`Error fetching recipe (attempt ${retries+1}/${MAX_RETRIES}):`, error);
+        retries++;
         
-        // Normalize the data structure
-        const normalizedRecipe = {
-          name: recipeData.name,
-          ingredients: recipeData.ingredients.map((ing: any) => ({
-            name: ing.name || "",
-            quantity: ing.quantity || "1",
-            unit: ing.unit || ""
-          })),
-          instructions: recipeData.instructions
-        };
-        
-        setRecipe(normalizedRecipe);
-        setShowInstructions(false);
-        
-        if (isAccessibleMode) {
-          Speech.speak(`Found recipe for ${normalizedRecipe.name}. ${normalizedRecipe.ingredients.length} ingredients needed.`);
+        if (retries >= MAX_RETRIES) {
+          console.error('Max retries reached. Notifying user of failure.');
+          Alert.alert('Error', 'Failed to get recipe. Please try again.');
+          if (isAccessibleMode) {
+            Speech.speak('Failed to get recipe. Please try again.');
+          }
+          break;
         }
-      } catch (parseError: unknown) {
-        console.error('JSON parsing error:', parseError, 'Raw text:', recipeText);
-        const errorMessage = parseError instanceof Error ? parseError.message : 'Unknown parsing error';
-        throw new Error(`Failed to parse recipe data: ${errorMessage}`);
       }
-    } catch (error) {
-      console.error('Error fetching recipe:', error);
-      Alert.alert('Error', 'Failed to get recipe. Please try again.');
-      if (isAccessibleMode) {
-        Speech.speak('Failed to get recipe. Please try again.');
-      }
-    } finally {
-      setLoading(false);
     }
+    
+    setLoading(false);
   }, [query, isAccessibleMode]);
 
   const addToPantry = useCallback(() => {
