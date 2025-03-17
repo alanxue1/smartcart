@@ -1142,7 +1142,6 @@ Do not include any text, markdown formatting, or code blocks outside the JSON.`
             <View style={[
               styles.recipeContainer,
               isAccessibleMode && { 
-                backgroundColor: '#222', 
                 borderColor: '#00E0E0',
                 borderWidth: 2
               }
@@ -1301,7 +1300,6 @@ Do not include any text, markdown formatting, or code blocks outside the JSON.`
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
   },
   scrollView: {
     flex: 1,
@@ -1402,7 +1400,6 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   recipeContainer: {
-    backgroundColor: '#fff',
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#eee',
