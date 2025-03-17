@@ -906,19 +906,18 @@ export default function ListScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
     padding: 20,
     paddingTop: 10,
   },
   containerAccessible: {
-    backgroundColor: '#000000',
+    backgroundColor: '#111',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 20,
-    marginTop: 20,
+    marginTop: 10,
   },
   title: {
     fontSize: 36,

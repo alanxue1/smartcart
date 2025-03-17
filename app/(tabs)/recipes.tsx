@@ -1022,17 +1022,16 @@ Do not include any text, markdown formatting, or code blocks outside the JSON.`
         <ScrollView 
           style={[
             styles.scrollView,
-            isAccessibleMode && { backgroundColor: '#000' },
-            { marginTop: -10 }
+            { backgroundColor: isAccessibleMode ? '#111' : '#fff' }
           ]}
           contentContainerStyle={[
             styles.contentContainer,
-            isAccessibleMode && { backgroundColor: '#000' }
+            { backgroundColor: isAccessibleMode ? '#111' : '#fff' }
           ]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={[styles.sectionContainer, { marginTop: 0 }]}>
+          <View style={[styles.sectionContainer, { marginTop: 10 }]}>
             <Text style={[
               styles.sectionMainTitle,
               isAccessibleMode && { color: '#00E0E0' }
