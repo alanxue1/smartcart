@@ -1,12 +1,12 @@
-# NaviCart
+# SmartCart
 
-A smart shopping & recipe app that helps manage your pantry and shopping list with AI-powered categorization.
+A smart shopping & recipe app that helps manage your grocery shopping and meal planning with AI-powered categorization.
 
 ## Features
 
 - 🔍 Search for recipes and see what ingredients you need
 - 📋 Maintain a pantry inventory of ingredients you already have
-- 🤖 AI-powered ingredient categorization using Google's Gemini Pro
+- 🤖 AI-powered ingredient categorization using Google's Gemini 2.0 Flash-Lite
 - 📱 Real-time shopping list syncing with Firebase
 - 🗂️ Automatic categorization into:
   - Produce
@@ -19,17 +19,30 @@ A smart shopping & recipe app that helps manage your pantry and shopping list wi
   - Frozen
   - Other
 - ✅ Mark items as complete
+- 🔢 Adjust quantities with intuitive controls
+- 🧠 Smart ingredient handling (removes preparation instructions like "finely chopped")
+- 🧮 Proper handling of fractions in recipe ingredients
 - 🗑️ Long press to delete items
 - 🔊 Text-to-speech for accessibility
 - 🎨 High contrast mode for better visibility
 - 📱 Cross-platform (iOS & Android) support
+
+## Recent Improvements
+
+- 🚀 Switched to Gemini 2.0 Flash-Lite for better API quota limits and performance
+- 🔍 Implemented exact matching for ingredient categorization, improving accuracy
+- 🛠️ Fixed issues with compound terms like "fish sauce" being incorrectly categorized
+- 🧮 Improved handling of fractions in recipe ingredients (1/4, 1/2, etc.)
+- 🧹 Automatic removal of preparation instructions from shopping list items
+- 📊 More efficient categorization system with less AI dependency
+- 💬 Simplified notification system for list management
 
 ## Tech Stack
 
 - React Native with Expo
 - TypeScript
 - Firebase Firestore
-- Google Gemini Pro API
+- Google Gemini API (upgraded to 2.0 Flash-Lite)
 - React Native Navigation (Expo Router)
 - Expo Speech API for accessibility
 
@@ -37,8 +50,8 @@ A smart shopping & recipe app that helps manage your pantry and shopping list wi
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/alanxue1/navicart.git
-cd navicart
+git clone https://github.com/alanxue1/smartcart.git
+cd smartcart
 ```
 
 2. Install dependencies:
@@ -63,14 +76,15 @@ npm start
 
 ## Environment Variables
 
-- `GEMINI_API_KEY`: Google Gemini Pro API key for item categorization
+- `GEMINI_API_KEY`: Google Gemini API key for item categorization
 
 ## Development
 
 - Built with Expo and TypeScript
 - Uses Firebase for real-time data sync
-- Implements AI categorization with error fallbacks
+- Implements AI categorization with smart fallbacks
 - Follows React Native best practices
+- Improved error handling with retry mechanisms
 
 ## Contributing
 
@@ -84,13 +98,8 @@ npm start
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## 🙏 Acknowledgments
-
-- Thanks to Google Gemini Pro API for the AI categorization capabilities
-- Other inspirations
-
 ## 📞 Contact
 
 Alan Xue - [@alanxue_](https://x.com/alanxue_) - xuealan101@gmail.com
 
-Project Link: [https://github.com/alanxue1/NaviCart](https://github.com/alanxue1/NaviCart)
+Project Link: [https://github.com/alanxue1/SmartCart](https://github.com/alanxue1/SmartCart)

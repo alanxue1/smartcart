@@ -1,13 +1,13 @@
 {
   "expo": {
-    "name": "NaviCart",
-    "slug": "NaviCart",
+    "name": "SmartCart",
+    "slug": "SmartCart",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/navicart-logo.png",
+    "icon": "./assets/images/smartcart-logo.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/images/navicart-logo.png",
+      "image": "./assets/images/smartcart-logo.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -16,19 +16,19 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.navicart.app",
+      "bundleIdentifier": "com.smartcart.app",
       "userInterfaceStyle": "automatic"
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/navicart-logo.png",
+        "foregroundImage": "./assets/images/smartcart-logo.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.navicart.app"
+      "package": "com.smartcart.app"
     },
     "web": {
       "bundler": "metro",
-      "favicon": "./assets/images/navicart-logo.png"
+      "favicon": "./assets/images/smartcart-logo.png"
     },
     "plugins": [
       "expo-router"

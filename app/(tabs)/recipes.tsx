@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -72,8 +72,70 @@ type Category = keyof typeof FOOD_CATEGORIES;
 // Maximum number of retries
 const MAX_RETRIES = 3;
 
+// Common compound terms that need special handling
+const COMPOUND_TERMS: Record<string, Category> = {
+  'fish sauce': 'Pantry',
+  'oyster sauce': 'Pantry',
+  'soy sauce': 'Pantry',
+  'hot sauce': 'Pantry',
+  'tomato sauce': 'Pantry',
+  'pasta sauce': 'Pantry',
+  'bbq sauce': 'Pantry',
+  'barbecue sauce': 'Pantry',
+  'worcestershire sauce': 'Pantry',
+  'teriyaki sauce': 'Pantry',
+  'hoisin sauce': 'Pantry',
+  'chicken stock': 'Pantry',
+  'beef stock': 'Pantry',
+  'vegetable stock': 'Pantry',
+  'chicken broth': 'Pantry',
+  'beef broth': 'Pantry',
+  'vegetable broth': 'Pantry',
+  'coconut milk': 'Pantry',
+  'tomato paste': 'Pantry',
+  'tomato puree': 'Pantry',
+  'chicken seasoning': 'Pantry',
+  'beef seasoning': 'Pantry',
+  'fish seasoning': 'Pantry',
+  'taco seasoning': 'Pantry',
+  'italian seasoning': 'Pantry',
+  'cajun seasoning': 'Pantry',
+};
+
+// Simple exact match categorization
+const exactMatchCategory = (item: string): Category | null => {
+  const lowercaseItem = item.toLowerCase().trim();
+  
+  // First check for exact compound terms
+  for (const [term, category] of Object.entries(COMPOUND_TERMS)) {
+    if (lowercaseItem === term) {
+      console.log(`Exact compound term match: "${item}" → ${category}`);
+      return category;
+    }
+  }
+  
+  // Next check for exact matches in categories
+  for (const [category, keywords] of Object.entries(FOOD_CATEGORIES)) {
+    if (category === 'Other') continue;
+    
+    if (keywords.includes(lowercaseItem)) {
+      console.log(`Exact keyword match: "${item}" → ${category}`);
+      return category as Category;
+    }
+  }
+  
+  // No exact match found
+  return null;
+};
+
 const askAIForCategory = async (item: string): Promise<Category> => {
-  console.log('🔍 Attempting to categorize:', item);
+  console.log('🔍 Attempting to categorize with AI:', item);
+  
+  // First try exact matching
+  const exactMatch = exactMatchCategory(item);
+  if (exactMatch) {
+    return exactMatch;
+  }
   
   let retries = 0;
   
@@ -142,10 +204,9 @@ const askAIForCategory = async (item: string): Promise<Category> => {
       console.error(`❌ Error categorizing item (attempt ${retries+1}/${MAX_RETRIES}):`, error);
       retries++;
       
-      // If we've exhausted retries, fall back to rule-based categorization
+      // If we've exhausted retries, return Other
       if (retries >= MAX_RETRIES) {
-        console.log('Max retries reached. Falling back to rule-based categorization.');
-        return categorizeByRules(item);
+        return 'Other';
       }
     }
   }
@@ -155,18 +216,13 @@ const askAIForCategory = async (item: string): Promise<Category> => {
 };
 
 const categorizeByRules = (item: string): Category => {
-  item = item.toLowerCase();
-  
-  for (const [category, keywords] of Object.entries(FOOD_CATEGORIES)) {
-    if (category === 'Other') continue;
-    
-    for (const keyword of keywords) {
-      if (item.includes(keyword.toLowerCase())) {
-        return category as Category;
-      }
-    }
+  // Redirect to our new exact matching function
+  const exactMatch = exactMatchCategory(item);
+  if (exactMatch) {
+    return exactMatch;
   }
   
+  // If no match found, just return Other
   return 'Other';
 };
 
@@ -182,9 +238,55 @@ interface Recipe {
   instructions: string[];
 }
 
+// Add this function to clean preparation instructions from ingredient names
+const cleanPreparationTerms = (name: string): string => {
+  // List of common preparation terms to remove
+  const prepTerms = [
+    'chopped', 'diced', 'minced', 'sliced', 'cubed', 'julienned', 'shredded', 
+    'grated', 'peeled', 'trimmed', 'finely', 'coarsely', 'thinly', 'roughly',
+    'freshly', 'crushed', 'crumbled', 'ground', 'powdered', 'sifted', 
+    'melted', 'softened', 'room temperature', 'chilled', 'frozen', 'thawed',
+    'drained', 'rinsed', 'washed', 'cleaned', 'stemmed', 'pitted', 'seeded',
+    'cored', 'blanched', 'boiled', 'steamed', 'roasted', 'toasted', 'sautéed',
+    'fried', 'grilled', 'baked', 'zested', 'juiced'
+  ];
+  
+  // Convert to lowercase for case-insensitive matching
+  let cleanName = name.toLowerCase();
+  
+  // Remove preparation terms enclosed in parentheses
+  cleanName = cleanName.replace(/\([^)]*\)/g, '').trim();
+  
+  // Remove each preparation term
+  for (const term of prepTerms) {
+    // Remove the term if it's surrounded by spaces or at the beginning/end
+    // Use word boundaries to avoid removing parts of words
+    cleanName = cleanName.replace(new RegExp(`\\b${term}\\b`, 'gi'), '');
+  }
+  
+  // Clean up any double spaces and trim
+  cleanName = cleanName.replace(/\s+/g, ' ').trim();
+  
+  // If the first character is a comma or other punctuation, remove it
+  cleanName = cleanName.replace(/^[,;:\s]+/, '');
+  
+  // If there's a comma followed by preparation terms, remove everything after the comma
+  if (cleanName.includes(',')) {
+    cleanName = cleanName.split(',')[0].trim();
+  }
+  
+  // Capitalize first letter
+  if (cleanName.length > 0) {
+    cleanName = cleanName.charAt(0).toUpperCase() + cleanName.slice(1);
+  }
+  
+  return cleanName || name; // Return original if we've removed everything
+};
+
 // Add this function to clean up ingredient names for shopping lists
 const normalizeIngredientForShopping = (ingredient: Ingredient): { text: string, quantity: number } => {
-  const name = ingredient.name.trim();
+  // Clean the name first to remove preparation instructions
+  const cleanedName = cleanPreparationTerms(ingredient.name.trim());
   const quantity = ingredient.quantity.trim();
   const unit = ingredient.unit.trim().toLowerCase();
   
@@ -213,48 +315,81 @@ const normalizeIngredientForShopping = (ingredient: Ingredient): { text: string,
   
   // Check if the ingredient is a common grocery item
   for (const item of commonItems) {
-    if (name.toLowerCase().includes(item.term)) {
+    if (cleanedName.toLowerCase().includes(item.term)) {
       // For common items, just return the name without measurements
-      return { text: name.split('(')[0].trim(), quantity: item.defaultQuantity };
+      return { text: cleanedName, quantity: item.defaultQuantity };
     }
   }
   
   // Check if the unit is one we want to remove from shopping list
   if (smallUnits.includes(unit)) {
     // Remove the small measurement unit and quantity
-    return { text: name, quantity: 1 };
+    return { text: cleanedName, quantity: 1 };
   }
   
   try {
-    // Try to parse the quantity as a number
-    const parsedQuantity = parseFloat(quantity.replace(/[^\d.-]/g, ''));
+    // Handle fractions like 1/4, 1/2, etc.
+    let parsedQuantity = 0;
     
-    if (!isNaN(parsedQuantity) && parsedQuantity > 0) {
-      if (['lb', 'pound', 'pounds'].includes(unit)) {
-        // For meat and items typically sold by weight
-        return { 
-          text: `${name} (${quantity} ${unit})`, 
-          quantity: 1 
-        };
-      } else if (['whole', 'medium', 'large', 'small', ''].includes(unit) && parsedQuantity >= 1) {
-        // For count-based items (apples, onions, etc.)
-        // Remove any text in parentheses and clean up the name
-        const cleanName = name.split('(')[0].trim();
-        return { 
-          text: cleanName, 
-          quantity: Math.round(parsedQuantity) 
-        };
+    if (quantity.includes('/')) {
+      // Handle fractions like "1/4" or "1/2"
+      const fractionParts = quantity.split('/');
+      if (fractionParts.length === 2) {
+        const numerator = parseFloat(fractionParts[0].replace(/[^\d.-]/g, ''));
+        const denominator = parseFloat(fractionParts[1].replace(/[^\d.-]/g, ''));
+        
+        if (!isNaN(numerator) && !isNaN(denominator) && denominator !== 0) {
+          parsedQuantity = numerator / denominator;
+        }
       }
+    } else if (quantity.includes('½')) {
+      // Handle special fraction characters
+      parsedQuantity = quantity.includes('1') ? 1.5 : 0.5;
+    } else if (quantity.includes('¼')) {
+      parsedQuantity = quantity.includes('3') ? 0.75 : 0.25;
+    } else if (quantity.includes('¾')) {
+      parsedQuantity = 0.75;
+    } else if (quantity.includes('⅓')) {
+      parsedQuantity = quantity.includes('2') ? 0.67 : 0.33;
+    } else if (quantity.includes('⅔')) {
+      parsedQuantity = 0.67;
+    } else {
+      // Try to parse the quantity as a number
+      parsedQuantity = parseFloat(quantity.replace(/[^\d.-]/g, ''));
+    }
+    
+    // Ensure we have a valid quantity
+    if (isNaN(parsedQuantity) || parsedQuantity <= 0) {
+      parsedQuantity = 1;
+    }
+    
+    // For quantities less than 1 (like 1/4, 1/2, etc.) round up to 1 for shopping list
+    if (parsedQuantity < 1) {
+      parsedQuantity = 1;
+    } else {
+      // Round to nearest whole number for shopping list
+      parsedQuantity = Math.round(parsedQuantity);
+    }
+    
+    if (['lb', 'pound', 'pounds'].includes(unit)) {
+      // For meat and items typically sold by weight
+      return { 
+        text: `${cleanedName} (${quantity} ${unit})`, 
+        quantity: 1 
+      };
+    } else if (['whole', 'medium', 'large', 'small', ''].includes(unit) && parsedQuantity >= 1) {
+      // For count-based items (apples, onions, etc.)
+      return { 
+        text: cleanedName, 
+        quantity: parsedQuantity 
+      };
     }
   } catch (e) {
     console.log('Error parsing quantity:', e);
   }
   
-  // Clean up any name that contains parentheses
-  const cleanName = name.split('(')[0].trim();
-  
-  // Default fallback: just the clean name, quantity of 1
-  return { text: cleanName, quantity: 1 };
+  // Default fallback: just the cleaned name, quantity of 1
+  return { text: cleanedName, quantity: 1 };
 };
 
 // Simple helper to check if two food items match, handling singular/plural forms
@@ -285,6 +420,35 @@ const ingredientMatches = (ingredient: string, pantryItem: string): boolean => {
   return singularIng.includes(singularPantry) || singularPantry.includes(singularIng);
 };
 
+// Define ingredient components that come from the same source
+const INGREDIENT_COMPONENTS: Record<string, string[]> = {
+  'egg': ['egg white', 'egg whites', 'egg yolk', 'egg yolks', 'whole egg', 'whole eggs'],
+  'lemon': ['lemon zest', 'lemon juice', 'lemon peel'],
+  'lime': ['lime zest', 'lime juice', 'lime peel'],
+  'orange': ['orange zest', 'orange juice', 'orange peel'],
+  'onion': ['onion top', 'onion tops', 'green onion', 'green onions'],
+  'milk': ['milk foam', 'milk froth'],
+  'tomato': ['tomato paste', 'tomato puree', 'tomato sauce', 'tomato juice']
+};
+
+// Check if two ingredients are components of the same source product
+const areRelatedComponents = (item1: string, item2: string): boolean => {
+  const item1Lower = item1.toLowerCase();
+  const item2Lower = item2.toLowerCase();
+  
+  // Check if these items are components of the same source
+  for (const [source, components] of Object.entries(INGREDIENT_COMPONENTS)) {
+    const isComponent1 = components.some(comp => item1Lower.includes(comp)) || item1Lower.includes(source);
+    const isComponent2 = components.some(comp => item2Lower.includes(comp)) || item2Lower.includes(source);
+    
+    if (isComponent1 && isComponent2) {
+      return true;
+    }
+  }
+  
+  return false;
+};
+
 // Add the duplicate checking function
 const checkAndMergeDuplicates = async () => {
   try {
@@ -292,7 +456,7 @@ const checkAndMergeDuplicates = async () => {
     const snapshot = await getDocs(collection(db, 'groceryItems'));
     
     // Create a map of items grouped by their lowercase text
-    const itemMap: Record<string, {id: string, quantity: number, doc: any}[]> = {};
+    const itemMap: Record<string, {id: string, quantity: number, text: string, doc: any}[]> = {};
     
     snapshot.forEach(doc => {
       const data = doc.data();
@@ -306,6 +470,7 @@ const checkAndMergeDuplicates = async () => {
       
       itemMap[textLower].push({
         id: doc.id,
+        text: data.text,
         quantity: data.quantity || 1,
         doc: data
       });
@@ -314,6 +479,7 @@ const checkAndMergeDuplicates = async () => {
     // Find and merge any duplicates
     const mergePromises: Promise<void>[] = [];
     
+    // First pass: merge exact duplicates (same text)
     Object.entries(itemMap).forEach(([textLower, items]) => {
       if (items.length > 1) {
         console.log(`Found ${items.length} duplicates for '${textLower}'`);
@@ -348,6 +514,92 @@ const checkAndMergeDuplicates = async () => {
       }
     });
     
+    // Second pass: look for component ingredients (like egg whites and egg yolks)
+    const processedGroups = new Set<string>();
+    
+    // Flatten all items into a single array
+    const allItems = Object.values(itemMap).flat();
+    
+    // Group related components
+    for (let i = 0; i < allItems.length; i++) {
+      const item = allItems[i];
+      
+      // Skip already processed items
+      if (processedGroups.has(item.id)) continue;
+      
+      const relatedItems = [item];
+      
+      // Find all related components
+      for (let j = i + 1; j < allItems.length; j++) {
+        const otherItem = allItems[j];
+        
+        // Skip already processed items
+        if (processedGroups.has(otherItem.id)) continue;
+        
+        if (areRelatedComponents(item.text, otherItem.text)) {
+          relatedItems.push(otherItem);
+          processedGroups.add(otherItem.id);
+        }
+      }
+      
+      // If we found related components, merge them
+      if (relatedItems.length > 1) {
+        processedGroups.add(item.id);
+        
+        console.log(`Found ${relatedItems.length} related components:`, relatedItems.map(i => i.text).join(', '));
+        
+        // Find the most generic name (usually the shortest and most basic)
+        // Sort by length to find the most basic term
+        relatedItems.sort((a, b) => a.text.length - b.text.length);
+        
+        let genericName = relatedItems[0].text;
+        let totalQuantity = 0;
+        
+        // Look for the base ingredient name
+        for (const component of relatedItems) {
+          for (const [source, _] of Object.entries(INGREDIENT_COMPONENTS)) {
+            if (component.text.toLowerCase().includes(source)) {
+              // If it's a pure base ingredient, prefer using that name
+              if (component.text.toLowerCase() === source) {
+                genericName = component.text;
+                break;
+              }
+              // Otherwise consider it as a candidate
+              else if (genericName.length > source.length) {
+                genericName = source.charAt(0).toUpperCase() + source.slice(1);
+              }
+            }
+          }
+          
+          totalQuantity += component.quantity;
+        }
+        
+        // If it's more than 1, append (for components) to indicate this represents multiple components
+        if (relatedItems.length > 1) {
+          genericName = `${genericName} (for recipe components)`;
+        }
+        
+        // Create a new item with the merged quantities and generic name
+        const docRef = await addDoc(collection(db, 'groceryItems'), {
+          text: genericName,
+          textLowercase: genericName.toLowerCase(),
+          completed: false,
+          category: relatedItems[0].doc.category || 'Other', // Keep the category from the first item
+          quantity: totalQuantity,
+          timestamp: new Date().getTime()
+        });
+        
+        console.log(`Created merged item: ${genericName} with quantity ${totalQuantity}`);
+        
+        // Delete all the component items
+        for (const component of relatedItems) {
+          mergePromises.push(
+            deleteDoc(doc(db, 'groceryItems', component.id))
+          );
+        }
+      }
+    }
+    
     if (mergePromises.length > 0) {
       await Promise.all(mergePromises);
       console.log(`Successfully merged ${mergePromises.length} operations`);
@@ -367,21 +619,99 @@ export default function RecipeScreen() {
   const [pantryItems, setPantryItems] = useState<string[]>([]);
   const [pantryItem, setPantryItem] = useState('');
   const [showInstructions, setShowInstructions] = useState(false);
+  const [speechAvailable, setSpeechAvailable] = useState(false);
+  const [speechQueue, setSpeechQueue] = useState<string[]>([]);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+
+  // Helper function to speak with debug feedback
+  const speakWithFeedback = useCallback((text: string, options = {}) => {
+    // Remove visual debug feedback
+    
+    // Stop any existing speech
+    Speech.stop();
+    
+    // Add a small delay before speaking
+    setTimeout(() => {
+      Speech.speak(text, {
+        language: 'en',
+        rate: 0.8,
+        pitch: 1,
+        ...options
+      });
+    }, 100);
+  }, []);
+
+  // Process the speech queue
+  useEffect(() => {
+    const processQueue = async () => {
+      // If already speaking or queue is empty, do nothing
+      if (isSpeaking || speechQueue.length === 0) return;
+      
+      try {
+        setIsSpeaking(true);
+        const textToSpeak = speechQueue[0];
+        
+        // Use a direct speech call with a promise
+        await new Promise<void>((resolve, reject) => {
+          // First stop any ongoing speech
+          Speech.stop();
+          
+          // Wait a small amount of time to ensure speech has stopped
+          setTimeout(() => {
+            // Then speak the new text
+            Speech.speak(textToSpeak, {
+              language: 'en',
+              pitch: 1,
+              rate: 0.8,
+              onDone: () => {
+                resolve();
+              },
+              onError: (error) => {
+                console.error('Speech error:', error);
+                reject(error);
+              }
+            });
+          }, 100);
+        });
+      } catch (error) {
+        console.error('Error in speech queue:', error);
+      } finally {
+        // Remove the spoken item from the queue and mark as not speaking
+        setSpeechQueue(prev => prev.slice(1));
+        setIsSpeaking(false);
+      }
+    };
+    
+    processQueue();
+  }, [speechQueue, isSpeaking]);
+
+  // Helper function to add speech to the queue
+  const queueSpeech = useCallback((text: string) => {
+    setSpeechQueue(prev => [...prev, text]);
+  }, []);
+
+  // Initialize speech module on component mount with a direct test
+  useEffect(() => {
+    // Clean up any speech when component unmounts
+    return () => {
+      Speech.stop();
+    };
+  }, []);
 
   const getRecipe = useCallback(async () => {
     if (!query.trim()) {
-      if (isAccessibleMode) {
-        Speech.speak('Please enter a recipe to search for');
-      }
+      speakWithFeedback('Please enter a recipe to search for');
       Alert.alert('Empty Query', 'Please enter a recipe to search for');
       return;
     }
 
     setLoading(true);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    if (isAccessibleMode) {
-      Speech.speak(`Searching for ${query} recipe`);
-    }
+    
+    // Give a short delay before speaking to ensure UI has updated
+    setTimeout(() => {
+      speakWithFeedback(`Searching for ${query} recipe`);
+    }, 300);
 
     let retries = 0;
     
@@ -496,9 +826,10 @@ Do not include any text, markdown formatting, or code blocks outside the JSON.`
           setRecipe(normalizedRecipe);
           setShowInstructions(false);
           
-          if (isAccessibleMode) {
-            Speech.speak(`Found recipe for ${normalizedRecipe.name}. ${normalizedRecipe.ingredients.length} ingredients needed.`);
-          }
+          // Delay the announcement slightly to ensure state has updated
+          setTimeout(() => {
+            speakWithFeedback(`Found recipe for ${normalizedRecipe.name}.`);
+          }, 500);
           
           // Success - exit the loop
           break;
@@ -515,18 +846,16 @@ Do not include any text, markdown formatting, or code blocks outside the JSON.`
         if (retries >= MAX_RETRIES) {
           console.error('Max retries reached. Notifying user of failure.');
           Alert.alert('Error', 'Failed to get recipe. Please try again.');
-          if (isAccessibleMode) {
-            Speech.speak('Failed to get recipe. Please try again.');
-          }
+          speakWithFeedback('Failed to get recipe. Please try again.');
           break;
         }
       }
     }
     
     setLoading(false);
-  }, [query, isAccessibleMode]);
+  }, [query]);
 
-  const addToPantry = useCallback(() => {
+  const addToPantry = useCallback(async () => {
     if (!pantryItem.trim()) return;
     
     const trimmedPantryItem = pantryItem.trim();
@@ -540,10 +869,6 @@ Do not include any text, markdown formatting, or code blocks outside the JSON.`
       // Alert the user that the item already exists
       Alert.alert('Duplicate Item', `"${trimmedPantryItem}" is already in your pantry.`);
       
-      if (isAccessibleMode) {
-        Speech.speak(`${trimmedPantryItem} is already in your pantry`);
-      }
-      
       setPantryItem('');
       return;
     }
@@ -553,19 +878,15 @@ Do not include any text, markdown formatting, or code blocks outside the JSON.`
     setPantryItem('');
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
-    if (isAccessibleMode) {
-      Speech.speak(`Added ${trimmedPantryItem} to pantry`);
-    }
-  }, [pantryItem, pantryItems, isAccessibleMode]);
+    speakWithFeedback(`Added ${trimmedPantryItem} to pantry`);
+  }, [pantryItem, pantryItems, speakWithFeedback]);
 
-  const removePantryItem = useCallback((item: string) => {
+  const removePantryItem = useCallback(async (item: string) => {
     setPantryItems(prev => prev.filter(i => i !== item));
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
-    if (isAccessibleMode) {
-      Speech.speak(`Removed ${item} from pantry`);
-    }
-  }, [isAccessibleMode]);
+    speakWithFeedback(`Removed ${item} from pantry`);
+  }, [speakWithFeedback]);
 
   const addToShoppingList = useCallback(async () => {
     if (!recipe) return;
@@ -580,9 +901,7 @@ Do not include any text, markdown formatting, or code blocks outside the JSON.`
       
       if (neededIngredients.length === 0) {
         Alert.alert('Good news!', 'You already have all the ingredients you need!');
-        if (isAccessibleMode) {
-          Speech.speak('You already have all the ingredients you need!');
-        }
+        speakWithFeedback('You already have all the ingredients you need!');
         return;
       }
       
@@ -666,59 +985,54 @@ Do not include any text, markdown formatting, or code blocks outside the JSON.`
       
       Alert.alert('Success', message);
       
-      if (isAccessibleMode) {
-        Speech.speak(message);
-      }
+      speakWithFeedback(message);
     } catch (error) {
       console.error('Error adding to shopping list:', error);
       Alert.alert('Error', 'Failed to add items to shopping list');
     } finally {
       setLoading(false);
     }
-  }, [recipe, pantryItems, isAccessibleMode]);
+  }, [recipe, pantryItems, speakWithFeedback]);
 
   const toggleInstructions = useCallback(() => {
     setShowInstructions(prev => !prev);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, []);
 
-  const speakRecipe = useCallback(() => {
+  const speakRecipe = useCallback(async () => {
     if (!recipe) return;
-    
-    Speech.stop();
     
     if (showInstructions) {
       const instructionsText = recipe.instructions.join('. ');
-      Speech.speak(`Instructions for ${recipe.name}. ${instructionsText}`);
+      speakWithFeedback(`Instructions for ${recipe.name}. ${instructionsText}`);
     } else {
       const ingredientsText = recipe.ingredients
         .map(ing => `${ing.quantity} ${ing.unit} ${ing.name}`)
         .join(', ');
-      Speech.speak(`Ingredients for ${recipe.name}. ${ingredientsText}`);
+      speakWithFeedback(`Ingredients for ${recipe.name}. ${ingredientsText}`);
     }
-  }, [recipe, showInstructions]);
+  }, [recipe, showInstructions, speakWithFeedback]);
 
   return (
-    <SafeAreaView style={[
-      styles.container, 
-      isAccessibleMode && { backgroundColor: '#000' }
-    ]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: isAccessibleMode ? '#111' : '#fff' }]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.container}
+        style={[styles.container, { paddingTop: Platform.OS === 'ios' ? 60 : 40 }]}
       >
         <ScrollView 
           style={[
             styles.scrollView,
-            isAccessibleMode && { backgroundColor: '#000' }
+            isAccessibleMode && { backgroundColor: '#000' },
+            { marginTop: -10 }
           ]}
           contentContainerStyle={[
             styles.contentContainer,
             isAccessibleMode && { backgroundColor: '#000' }
           ]}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <View style={styles.sectionContainer}>
+          <View style={[styles.sectionContainer, { marginTop: 0 }]}>
             <Text style={[
               styles.sectionMainTitle,
               isAccessibleMode && { color: '#00E0E0' }
@@ -994,26 +1308,27 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentContainer: {
-    padding: 16,
+    padding: 8,
+    paddingTop: -8,
     paddingBottom: 120,
   },
   sectionContainer: {
-    marginBottom: 24,
+    marginBottom: 16,
   },
   sectionMainTitle: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: 'bold',
-    marginBottom: 16,
+    marginBottom: 12,
     color: '#333',
   },
   searchContainer: {
     flexDirection: 'row',
-    marginBottom: 20,
+    marginBottom: 16,
     alignItems: 'center',
   },
   input: {
     flex: 1,
-    height: 70,
+    height: 60,
     borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: 12,
@@ -1022,15 +1337,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9f9f9',
   },
   searchButton: {
-    width: 70,
-    height: 70,
+    width: 60,
+    height: 60,
     borderRadius: 12,
     marginLeft: 12,
     justifyContent: 'center',
     alignItems: 'center',
   },
   pantryContainer: {
-    marginBottom: 24,
+    marginBottom: 16,
   },
   sectionTitle: {
     fontSize: 24,
@@ -1041,16 +1356,16 @@ const styles = StyleSheet.create({
   sectionSubtitle: {
     fontSize: 16,
     color: '#666',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   pantryInputContainer: {
     flexDirection: 'row',
-    marginBottom: 16,
+    marginBottom: 12,
     alignItems: 'center',
   },
   pantryInput: {
     flex: 1,
-    height: 70,
+    height: 60,
     borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: 12,
@@ -1059,8 +1374,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9f9f9',
   },
   addButton: {
-    width: 70,
-    height: 70,
+    width: 60,
+    height: 60,
     borderRadius: 12,
     marginLeft: 12,
     justifyContent: 'center',
@@ -1092,14 +1407,14 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#eee',
-    padding: 20,
-    marginBottom: 24,
+    padding: 16,
+    marginBottom: 16,
   },
   recipeHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   recipeName: {
     fontSize: 32,
@@ -1112,7 +1427,7 @@ const styles = StyleSheet.create({
   },
   tabContainer: {
     flexDirection: 'row',
-    marginBottom: 20,
+    marginBottom: 12,
     borderRadius: 8,
     overflow: 'hidden',
   },
@@ -1184,5 +1499,5 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 22,
     fontWeight: '600',
-  }
+  },
 }); 

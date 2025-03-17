@@ -89,7 +89,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
 const TUTORIAL_STEPS = [
   {
-    title: "Welcome to NaviCart! 🛒",
+    title: "Welcome to SmartCart! 🛒",
     description: "Let's learn how to use the app in a few simple steps."
   },
   {
@@ -225,10 +225,31 @@ export default function HomeScreen() {
         <View style={styles.contentContainer}>
           <View style={styles.welcomeContainer}>
             <Text style={[styles.welcomeText, isAccessibleMode && styles.welcomeTextAccessible]}>Welcome to</Text>
-            <Text style={[styles.appName, isAccessibleMode && styles.appNameAccessible]}>NaviCart</Text>
-            <Text style={[styles.subtitle, isAccessibleMode && styles.subtitleAccessible]}>
-              Recipes, pantry tracking, and{'\n'}smart shopping lists
-            </Text>
+            <View style={[
+              styles.highlightedTitleContainer, 
+              { backgroundColor: isAccessibleMode ? '#00FFFF' : '#E6EFFF' }
+            ]}>
+              <Text style={[styles.appName, isAccessibleMode && styles.appNameAccessible]}>SmartCart</Text>
+            </View>
+            <View style={styles.subtitleContainer}>
+              <Text style={[
+                styles.subtitleHighlight, 
+                isAccessibleMode && styles.subtitleHighlightAccessible,
+                { backgroundColor: isAccessibleMode ? '#00FFFF' : '#5D9CED' }
+              ]}>
+                AI-powered
+              </Text>
+              <Text style={[
+                styles.subtitle, 
+                { color: isAccessibleMode ? '#00FFFF' : '#666' },
+                isAccessibleMode && { 
+                  fontWeight: '700',
+                  letterSpacing: 0.5,
+                }
+              ]}>
+                {' shopping for everyone'}
+              </Text>
+            </View>
           </View>
           
           <View style={styles.buttonContainer}>
@@ -519,22 +540,59 @@ const styles = StyleSheet.create({
     color: '#00FFFF',
   },
   appName: {
-    fontSize: 42,
+    fontSize: 48,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 20,
+    paddingHorizontal: 15,
+    paddingVertical: 2,
   },
   appNameAccessible: {
-    color: '#00FFFF',
+    color: '#000',
+  },
+  highlightedTitleContainer: {
+    borderRadius: 12,
+    marginBottom: 22,
+    marginTop: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  subtitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center', 
+    justifyContent: 'center',
+    marginTop: 10,
+    flexWrap: 'wrap',
+  },
+  subtitleHighlight: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#fff',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 6,
+    overflow: 'hidden',
+    marginRight: 4,
+    textShadowColor: 'rgba(0, 0, 0, 0.1)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 1,
+  },
+  subtitleHighlightAccessible: {
+    backgroundColor: '#00FFFF',
+    color: '#000',
   },
   subtitle: {
     fontSize: 20,
     color: '#666',
     textAlign: 'center',
     lineHeight: 28,
+    fontWeight: '500',
   },
   subtitleAccessible: {
-    color: '#00FFFF',
+    color: '#eee',
+    fontWeight: '600',
   },
   buttonContainer: {
     width: '100%',

@@ -40,7 +40,9 @@ const FOOD_CATEGORIES: Record<string, readonly string[]> = {
   'Pantry': [
     'rice', 'pasta', 'bread', 'cereal', 'flour', 'sugar', 'oil', 'vinegar', 'sauce', 'spice',
     'seasoning', 'canned', 'dried', 'baking', 'condiment', 'syrup', 'honey', 'peanut butter',
-    'jam', 'jelly', 'bean', 'lentil', 'grain'
+    'jam', 'jelly', 'bean', 'lentil', 'grain', 'fish sauce', 'oyster sauce', 'soy sauce', 
+    'hot sauce', 'tomato sauce', 'worcestershire sauce', 'BBQ sauce', 'teriyaki sauce', 
+    'hoisin sauce', 'salsa', 'ketchup', 'mustard', 'mayo', 'mayonnaise', 'salt', 'pepper'
   ],
   'Snacks': [
     'chips', 'cookies', 'crackers', 'nuts', 'candy', 'chocolate', 'popcorn', 'pretzel', 'granola bar',
@@ -57,12 +59,69 @@ const FOOD_CATEGORIES: Record<string, readonly string[]> = {
   'Other': []
 } as const;
 
+// Common compound terms that need special handling
+const COMPOUND_TERMS: Record<string, Category> = {
+  'fish sauce': 'Pantry',
+  'oyster sauce': 'Pantry',
+  'soy sauce': 'Pantry',
+  'hot sauce': 'Pantry',
+  'tomato sauce': 'Pantry',
+  'pasta sauce': 'Pantry',
+  'bbq sauce': 'Pantry',
+  'barbecue sauce': 'Pantry',
+  'worcestershire sauce': 'Pantry',
+  'teriyaki sauce': 'Pantry',
+  'hoisin sauce': 'Pantry',
+  'chicken stock': 'Pantry',
+  'beef stock': 'Pantry',
+  'vegetable stock': 'Pantry',
+  'chicken broth': 'Pantry',
+  'beef broth': 'Pantry',
+  'vegetable broth': 'Pantry',
+  'coconut milk': 'Pantry',
+  'tomato paste': 'Pantry',
+  'tomato puree': 'Pantry',
+  'chicken seasoning': 'Pantry',
+  'beef seasoning': 'Pantry',
+  'fish seasoning': 'Pantry',
+  'taco seasoning': 'Pantry',
+  'italian seasoning': 'Pantry',
+  'cajun seasoning': 'Pantry',
+};
+
 type Category = keyof typeof FOOD_CATEGORIES;
 
+// Simple exact match categorization 
+const exactMatchCategory = (item: string): Category | null => {
+  const lowercaseItem = item.toLowerCase().trim();
+  
+  // First check for exact compound terms
+  for (const [term, category] of Object.entries(COMPOUND_TERMS)) {
+    if (lowercaseItem === term) {
+      console.log(`Exact compound term match: "${item}" → ${category}`);
+      return category;
+    }
+  }
+  
+  // Next check for exact matches in categories
+  for (const [category, keywords] of Object.entries(FOOD_CATEGORIES)) {
+    if (category === 'Other') continue;
+    
+    if (keywords.includes(lowercaseItem)) {
+      console.log(`Exact keyword match: "${item}" → ${category}`);
+      return category as Category;
+    }
+  }
+  
+  // No exact match found
+  return null;
+};
+
 const askAIForCategory = async (item: string): Promise<Category> => {
-  console.log('🔍 Attempting to categorize:', item);
+  console.log('🔍 Attempting to categorize with AI:', item);
+  
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent?key=${config.geminiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-lite:generateContent?key=${config.geminiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -89,7 +148,6 @@ const askAIForCategory = async (item: string): Promise<Category> => {
     }
 
     const data = await response.json();
-    console.log('📡 Raw API response:', JSON.stringify(data, null, 2));
     
     if (!data?.candidates?.[0]?.content?.parts?.[0]?.text) {
       console.error('❌ Invalid response format:', data);
@@ -101,50 +159,29 @@ const askAIForCategory = async (item: string): Promise<Category> => {
     
     // Clean up the response to match our categories
     const normalizedCategory = Object.keys(FOOD_CATEGORIES).find(
-      cat => suggestedCategory.toLowerCase().includes(cat.toLowerCase())
+      cat => suggestedCategory.toLowerCase() === cat.toLowerCase()
     );
 
-    console.log('✅ Final category:', normalizedCategory || 'Other', 
-                normalizedCategory ? '(matched)' : '(fallback to Other)');
-
+    console.log('✅ Final AI category:', normalizedCategory || 'Other');
     return (normalizedCategory as Category) || 'Other';
   } catch (error) {
     console.error('❌ AI categorization failed:', error);
-    // Fallback to basic categorization
-    const lowercaseItem = item.toLowerCase();
-    let fallbackCategory: Category = 'Other';
-    
-    if (lowercaseItem.includes('fresh') || lowercaseItem.includes('vegetable') || lowercaseItem.includes('fruit')) {
-      fallbackCategory = 'Produce';
-    } else if (lowercaseItem.includes('frozen')) {
-      fallbackCategory = 'Frozen';
-    } else if (lowercaseItem.includes('milk') || lowercaseItem.includes('cheese')) {
-      fallbackCategory = 'Dairy';
-    } else if (lowercaseItem.includes('fish') || lowercaseItem.includes('seafood') || 
-               lowercaseItem.includes('shrimp') || lowercaseItem.includes('crab')) {
-      fallbackCategory = 'Seafood';
-    } else if (lowercaseItem.includes('meat') || lowercaseItem.includes('chicken') || 
-               lowercaseItem.includes('beef') || lowercaseItem.includes('pork')) {
-      fallbackCategory = 'Meat';
-    }
-    
-    console.log('🔄 Using fallback categorization:', fallbackCategory);
-    return fallbackCategory;
+    return 'Other';
   }
 };
 
 const categorizeItem = async (text: string): Promise<Category> => {
-  const lowercaseText = text.toLowerCase().trim();
-  
-  // Check for exact matches first
-  for (const [category, items] of Object.entries(FOOD_CATEGORIES)) {
-    if (items.includes(lowercaseText)) {
-      return category as Category;
-    }
+  // Try exact matching first
+  const exactMatch = exactMatchCategory(text);
+  if (exactMatch) {
+    return exactMatch;
   }
   
-  // If no exact match found, ask AI for help
-  return await askAIForCategory(text);
+  // If no exact match, ask AI
+  const aiCategory = await askAIForCategory(text);
+  
+  // Use AI's response or fall back to Other
+  return aiCategory;
 };
 
 export default function ListScreen() {
@@ -480,20 +517,14 @@ export default function ListScreen() {
             onPress: async () => {
               await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               
-              // Count total items and summarize by category before clearing
+              // Count total items before clearing
               const totalItems = items.length;
-              const categorySummary = Object.entries(itemsByCategory)
-                .map(([category, categoryItems]) => {
-                  const count = categoryItems.length;
-                  return count === 1 ? `1 item from ${category}` : `${count} items from ${category}`;
-                })
-                .join(', ');
               
               const batch = items.map(item => deleteDoc(doc(db, 'groceryItems', item.id)));
               await Promise.all(batch);
               
               const totalMessage = totalItems === 1 ? '1 item' : `${totalItems} items`;
-              Speech.speak(`Cleared ${totalMessage}: ${categorySummary}`, {
+              Speech.speak(`Cleared ${totalMessage}`, {
                 language: 'en',
                 pitch: 1,
                 rate: 0.9,
@@ -692,7 +723,11 @@ export default function ListScreen() {
   return (
     <KeyboardAvoidingView 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={[styles.container, isAccessibleMode && styles.containerAccessible]}
+      style={[
+        styles.container,
+        { backgroundColor: isAccessibleMode ? '#111' : '#fff' },
+        { paddingTop: Platform.OS === 'ios' ? 60 : 40 }
+      ]}
       keyboardVerticalOffset={100}
     >
       <View style={styles.header}>

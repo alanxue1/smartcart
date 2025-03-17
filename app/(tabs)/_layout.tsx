@@ -29,6 +29,7 @@ export default function TabLayout() {
       screenOptions={{
         tabBarActiveTintColor: primaryColor,
         tabBarInactiveTintColor: isAccessibleMode ? '#aaa' : '#666',
+        headerShown: false,
         tabBarStyle: {
           backgroundColor: isAccessibleMode ? '#111' : '#fff',
           borderTopColor: isAccessibleMode ? primaryColor : '#e0e0e0',
