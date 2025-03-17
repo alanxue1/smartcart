@@ -148,7 +148,7 @@ const askAIForCategory = async (item: string): Promise<Category> => {
         await new Promise(resolve => setTimeout(resolve, delayMs));
       }
       
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-lite:generateContent?key=${config.geminiKey}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${config.geminiKey}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -724,7 +724,7 @@ export default function RecipeScreen() {
           await new Promise(resolve => setTimeout(resolve, delayMs));
         }
         
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-lite:generateContent?key=${config.geminiKey}`, {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${config.geminiKey}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -750,7 +750,7 @@ Do not include any text, markdown formatting, or code blocks outside the JSON.`
               }]
             }],
             generationConfig: {
-              temperature: 0.2,
+              temperature: 0,
               maxOutputTokens: 2048,
               topP: 0.8,
               topK: 40

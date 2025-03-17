@@ -6,18 +6,9 @@ A smart shopping & recipe app that helps manage your grocery shopping and meal p
 
 - 🔍 Search for recipes and see what ingredients you need
 - 📋 Maintain a pantry inventory of ingredients you already have
-- 🤖 AI-powered ingredient categorization using Google's Gemini 2.0 Flash-Lite
+- 🤖 AI-powered ingredient categorization using Google's Gemini 2.0 Flash
 - 📱 Real-time shopping list syncing with Firebase
-- 🗂️ Automatic categorization into:
-  - Produce
-  - Dairy
-  - Meat
-  - Seafood
-  - Pantry
-  - Snacks
-  - Beverages
-  - Frozen
-  - Other
+- 🗂️ Automatic categorization
 - ✅ Mark items as complete
 - 🔢 Adjust quantities with intuitive controls
 - 🧠 Smart ingredient handling (removes preparation instructions like "finely chopped")
@@ -29,7 +20,7 @@ A smart shopping & recipe app that helps manage your grocery shopping and meal p
 
 ## Recent Improvements
 
-- 🚀 Switched to Gemini 2.0 Flash-Lite for better API quota limits and performance
+- 🚀 Switched to Gemini 2.0 Flash for better API quota limits and performance
 - 🔍 Implemented exact matching for ingredient categorization, improving accuracy
 - 🛠️ Fixed issues with compound terms like "fish sauce" being incorrectly categorized
 - 🧮 Improved handling of fractions in recipe ingredients (1/4, 1/2, etc.)
@@ -42,7 +33,7 @@ A smart shopping & recipe app that helps manage your grocery shopping and meal p
 - React Native with Expo
 - TypeScript
 - Firebase Firestore
-- Google Gemini API (upgraded to 2.0 Flash-Lite)
+- Google Gemini API (upgraded to 2.0 Flash)
 - React Native Navigation (Expo Router)
 - Expo Speech API for accessibility
 
