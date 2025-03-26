@@ -59,6 +59,19 @@ const FOOD_CATEGORIES: Record<string, readonly string[]> = {
   'Other': []
 } as const;
 
+// Aisle numbers for each category
+const CATEGORY_AISLES: Record<string, number> = {
+  'Produce': 1,
+  'Dairy': 2,
+  'Meat': 3,
+  'Seafood': 4,
+  'Pantry': 5,
+  'Snacks': 6,
+  'Beverages': 7,
+  'Frozen': 8,
+  'Other': 9
+};
+
 // Common compound terms that need special handling
 const COMPOUND_TERMS: Record<string, Category> = {
   'fish sauce': 'Pantry',
@@ -652,7 +665,7 @@ export default function ListScreen() {
       const uncheckedItems = items.filter(item => !item.completed);
       
       if (uncheckedItems.length === 0) {
-        Speech.speak(`No unchecked items in ${category}`, {
+        Speech.speak(`No unchecked items in ${category}, Aisle ${CATEGORY_AISLES[category] || 'unknown'}`, {
           language: 'en',
           pitch: 1,
           rate: 0.9,
@@ -667,7 +680,7 @@ export default function ListScreen() {
         return quantity === 1 ? `1 ${item.text}` : `${quantity} ${item.text}s`;
       }).join(', ');
       
-      Speech.speak(`${category} items: ${itemsList}`, {
+      Speech.speak(`${category}, Aisle ${CATEGORY_AISLES[category] || 'unknown'}, items: ${itemsList}`, {
         language: 'en',
         pitch: 1,
         rate: 0.9,
@@ -682,8 +695,8 @@ export default function ListScreen() {
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
       Alert.alert(
-        `Clear ${category}`,
-        `Are you sure you want to remove all items from ${category}?`,
+        `Clear ${category} (Aisle ${CATEGORY_AISLES[category] || '?'})`,
+        `Are you sure you want to remove all items from ${category} (Aisle ${CATEGORY_AISLES[category] || '?'})?`,
         [
           {
             text: "Cancel",
@@ -704,7 +717,7 @@ export default function ListScreen() {
               const batch = items.map(item => deleteDoc(doc(db, 'groceryItems', item.id)));
               await Promise.all(batch);
               
-              Speech.speak(`Cleared ${items.length} items from ${category}: ${itemSummary}`, {
+              Speech.speak(`Cleared ${items.length} items from ${category}, Aisle ${CATEGORY_AISLES[category] || 'unknown'}: ${itemSummary}`, {
                 language: 'en',
                 pitch: 1,
                 rate: 0.9,
@@ -766,7 +779,9 @@ export default function ListScreen() {
         {Object.entries(itemsByCategory).map(([category, categoryItems]) => (
           <View key={category} style={styles.categoryContainer}>
             <View style={styles.categoryHeader}>
-              <Text style={[styles.categoryTitle, { color: isAccessibleMode ? "#FF00FF" : primaryColor }]}>{category}</Text>
+              <Text style={[styles.categoryTitle, { color: isAccessibleMode ? "#FF00FF" : primaryColor }]}>
+                {category} (Aisle {CATEGORY_AISLES[category] || '?'})
+              </Text>
               <View style={styles.categoryActions}>
                 <Pressable
                   style={[styles.categoryButton, isAccessibleMode && styles.categoryButtonAccessible]}
